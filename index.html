@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>转盘生成器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: white;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            opacity: 0.9;
+        }
+
+        .editor-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            align-items: start;
+        }
+
+        .config-panel {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .config-panel h2 {
+            margin-bottom: 1.5rem;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="number"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .theme-selector {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .theme-option {
+            padding: 0.5rem 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .theme-option:hover {
+            border-color: #667eea;
+            background: #f5f5f5;
+        }
+
+        .theme-option.active {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+
+        .options-list {
+            margin-bottom: 1rem;
+        }
+
+        .option-item {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            align-items: center;
+        }
+
+        .option-item input[type="text"] {
+            flex: 1;
+        }
+
+        .option-item input[type="number"] {
+            width: 80px;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-danger {
+            background: #ff4444;
+            color: white;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+
+        .btn-danger:hover {
+            background: #cc0000;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .preview-panel {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .preview-panel h3 {
+            margin-bottom: 1.5rem;
+            color: #333;
+        }
+
+        #preview-wheel {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .wheel-actions {
+            margin-top: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .spin-btn {
+            padding: 1rem 3rem;
+            font-size: 1.25rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+        }
+
+        .spin-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .spin-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-display {
+            min-height: 60px;
+            padding: 1rem 1.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            font-size: 1.25rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: all 0.3s;
+        }
+
+        .result-display.show {
+            opacity: 1;
+        }
+
+        .result-display.placeholder {
+            opacity: 0.5;
+            font-weight: normal;
+            font-size: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .editor-container {
+                grid-template-columns: 1fr;
+            }
+
+            header h1 {
+                font-size: 2rem;
+            }
+
+            body {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎡 转盘生成器</h1>
+            <p>创建自定义转盘，导出为独立 HTML 文件</p>
+        </header>
+
+        <div class="editor-container">
+            <div class="config-panel">
+                <h2>配置转盘</h2>
+
+                <div class="form-group">
+                    <label for="title-input">标题</label>
+                    <input type="text" id="title-input" placeholder="今晚吃什么" value="我的转盘">
+                </div>
+
+                <div class="form-group">
+                    <label>主题</label>
+                    <div class="theme-selector" id="theme-selector">
+                        <div class="theme-option active" data-theme="forest">森林</div>
+                        <div class="theme-option" data-theme="ocean">海洋</div>
+                        <div class="theme-option" data-theme="sunset">夕阳</div>
+                        <div class="theme-option" data-theme="berry">浆果</div>
+                        <div class="theme-option" data-theme="fresh">清新</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>选项</label>
+                    <div class="options-list" id="options-list">
+                        <!-- Options will be rendered here -->
+                    </div>
+                    <button type="button" class="btn btn-secondary" id="add-option">
+                        + 添加选项
+                    </button>
+                </div>
+
+                <button type="button" class="btn btn-primary" id="export-btn">
+                    生成转盘文件
+                </button>
+            </div>
+
+            <div class="preview-panel">
+                <h3>🎮 转盘预览</h3>
+                <svg id="preview-wheel" viewBox="0 0 500 500">
+                    <!-- Wheel will be rendered here -->
+                </svg>
+                <div class="wheel-actions">
+                    <button type="button" class="spin-btn" id="spin-btn">
+                        🎯 开始旋转
+                    </button>
+                    <div class="result-display placeholder" id="result-display">
+                        点击按钮开始旋转
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>

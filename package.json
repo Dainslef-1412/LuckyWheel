@@ -1,0 +1,15 @@
+{
+  "name": "zhuanpan",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Single-file offline custom wheel generator",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && echo 'Ready to deploy! Upload the dist/ folder to your hosting service.'"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}

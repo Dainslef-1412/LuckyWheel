@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{TITLE}}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: var(--theme-background, #1a1a1a);
+            color: var(--theme-text, #ffffff);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .mode-switch {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            justify-content: center;
+        }
+
+        .mode-switch button {
+            padding: 0.75rem 2rem;
+            border: 2px solid var(--theme-accent, #90be6d);
+            background: transparent;
+            color: var(--theme-text, #ffffff);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .mode-switch button:hover {
+            background: var(--theme-accent, #90be6d);
+        }
+
+        .mode-switch button.active {
+            background: var(--theme-accent, #90be6d);
+            color: var(--theme-background, #1a1a1a);
+        }
+
+        .view {
+            display: none;
+        }
+
+        .view.active {
+            display: block;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 2rem;
+            font-size: 2rem;
+        }
+
+        .wheel-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        #wheel-svg {
+            width: 100%;
+            max-width: 400px;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+        }
+
+        .spin-btn {
+            padding: 1rem 3rem;
+            font-size: 1.25rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 50px;
+            background: var(--theme-accent, #90be6d);
+            color: var(--theme-background, #1a1a1a);
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .spin-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .spin-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .result-display {
+            text-align: center;
+            padding: 1.5rem;
+            background: var(--theme-accent, #90be6d);
+            color: var(--theme-background, #1a1a1a);
+            border-radius: 12px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-top: 2rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .result-display.show {
+            opacity: 1;
+        }
+
+        /* Edit View */
+        .edit-form {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="number"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--theme-text, #ffffff);
+            font-size: 1rem;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--theme-accent, #90be6d);
+        }
+
+        .options-list {
+            margin-bottom: 1rem;
+        }
+
+        .option-item {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            align-items: center;
+        }
+
+        .option-item input[type="text"] {
+            flex: 1;
+        }
+
+        .option-item input[type="number"] {
+            width: 80px;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--theme-text, #ffffff);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-danger {
+            background: #ff4444;
+            color: white;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+
+        .btn-danger:hover {
+            background: #cc0000;
+        }
+
+        .btn-primary {
+            background: var(--theme-accent, #90be6d);
+            color: var(--theme-background, #1a1a1a);
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .mode-switch {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="mode-switch">
+            <button id="play-mode-btn" class="active">🎮 游玩</button>
+            <button id="edit-mode-btn">✏️ 编辑</button>
+        </div>
+
+        <!-- Play View -->
+        <div id="play-view" class="view active">
+            <h1 id="wheel-title">{{TITLE}}</h1>
+            <div class="wheel-wrapper">
+                <svg id="wheel-svg" viewBox="0 0 500 500">
+                    <!-- Wheel will be rendered here -->
+                </svg>
+                <button id="spin-btn" class="spin-btn">开始旋转</button>
+            </div>
+            <div id="result-display" class="result-display"></div>
+        </div>
+
+        <!-- Edit View -->
+        <div id="edit-view" class="view">
+            <h1>编辑转盘</h1>
+            <form id="edit-form" class="edit-form">
+                <div class="form-group">
+                    <label for="edit-title">标题</label>
+                    <input type="text" id="edit-title" value="{{TITLE}}">
+                </div>
+
+                <div class="form-group">
+                    <label>选项</label>
+                    <div id="edit-options-list" class="options-list">
+                        <!-- Options will be rendered here -->
+                    </div>
+                    <button type="button" class="btn btn-secondary" id="add-option-btn">
+                        + 添加选项
+                    </button>
+                </div>
+
+                <button type="button" class="btn btn-primary" id="save-btn">
+                    保存并下载新版本
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {{CONFIG}};
+
+        // JS will be injected here
+        {{JS}}
+    </script>
+</body>
+</html>
