@@ -4,13 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**zhuanpan** (转盘) is a single-file offline custom wheel generator. Users can customize wheel options, weights, and themes, then export the configured wheel as a **standalone HTML file**. The exported file runs locally without any server or external dependencies.
+**zhuanpan** (转盘) is a lightweight web-based wheel generator. Users can customize wheel options, weights, and themes, then use, save, and share the configured wheel directly in the browser.
 
 ## Tech Stack
 
 **Framework**: Vite + Vanilla JavaScript
 - **Why Vite**: Fast dev server with HMR, clean build output, minimal overhead
-- **Why Vanilla JS**: Simple, lightweight, easy to bundle into single HTML file
+- **Why Vanilla JS**: Simple, lightweight, and sufficient for a single-page tool
 - **Avoid**: Next.js, React, Vue (overkill for this use case)
 
 ## Core Architecture
@@ -20,18 +20,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 1. **Editor Mode** (Configuration)
    - User inputs: title, options, weights, theme
    - Real-time SVG preview
-   - Generates downloadable HTML file
+   - Updates the live wheel immediately
 
 2. **Play Mode** (Execution)
    - Spinning animation with physics
    - Weighted random selection
    - Result display
-   - Toggle back to Editor mode
+   - Adjust configuration and spin again without leaving the page
 
 ### Key Technical Constraints
 
-- **Single HTML Export**: All CSS/JS must be inline in generated file
-- **No External Dependencies**: No CDN links, no npm imports in exported file
+- **Single-Page Experience**: Configuration and play happen in one page
+- **No External Dependencies**: Keep the app deployable as a static site with no backend
 - **SVG Rendering**: Use native SVG with M/L/A path commands
 - **Weight-Based Angles**: Calculate扇区 angles from weight ratios
 
@@ -61,10 +61,11 @@ zhuanpan/
 │   ├── main.js          # Entry point
 │   ├── wheel.js         # Wheel rendering (SVG generation)
 │   ├── spin.js          # Spin animation & physics
-│   ├── export.js        # HTML file generation
 │   ├── themes.js        # Theme presets (colors, fonts)
+│   ├── preset-manager.js # User preset persistence
+│   ├── presets.js       # Built-in presets
+│   ├── url-handler.js   # Share URL encoding/decoding
 │   └── utils.js         # Helper functions
-├── template.html        # Standalone wheel template
 ├── prd.md              # Requirements document
 └── CLAUDE.md           # This file
 ```
@@ -114,16 +115,15 @@ const CONFIG = {
 };
 ```
 
-### Export Flow
+### Save And Share Flow
 
-1. Serialize current state to JSON
-2. Inject into `template.html` string
-3. Create Blob with MIME type `text/html`
-4. Trigger download via `URL.createObjectURL()`
+1. Keep the current state in browser memory for immediate play
+2. Save reusable configurations to `localStorage` as presets
+3. Encode the current configuration into the URL for sharing
 
 ### Critical Requirements
 
-- **No External CDNs**: All CSS/JS must be inline strings
+- **No External CDNs**: Keep the static site self-contained
 - **Weight Precision**: Ensure seamless SVG sector joints
 - **Random Fairness**: Weighted selection must match probabilities
 - **Browser Support**: Chrome, Safari, Edge (mobile + desktop)
@@ -135,19 +135,18 @@ const CONFIG = {
 - Prefer CSS variables for theme switching
 - Use `requestAnimationFrame` for smooth spin animation
 - Test wheel with edge cases (1 item, many items, extreme weight ratios)
-- Ensure exported HTML works offline (no external requests)
+- Keep shared URLs backward-compatible when possible
 
 ## Browser Testing
 
-Test exported HTML in:
+Test the app page in:
 - Chrome/Edge (Chromium)
 - Safari (WebKit)
 - Mobile browsers (iOS Safari, Chrome Android)
 
 ## File Size Considerations
 
-Keep exported HTML minimal:
-- Minify CSS/JS before injection
-- Use short variable names in template
-- Avoid unnecessary comments
-- Target: < 50KB per file
+Keep the shipped app minimal:
+- Avoid unnecessary dependencies
+- Prefer readable, maintainable browser-native code
+- Keep bundle size reasonable for a small static tool

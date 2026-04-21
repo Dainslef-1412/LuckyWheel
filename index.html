@@ -5,6 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>转盘生成器</title>
     <style>
+        :root {
+            --bg: #f6ead8;
+            --bg-soft: #fff8ef;
+            --panel: rgba(255, 248, 239, 0.86);
+            --panel-strong: #fffdf8;
+            --panel-border: rgba(103, 70, 38, 0.14);
+            --text: #2d241b;
+            --muted: #6f6254;
+            --accent: #d2683d;
+            --accent-strong: #b34b24;
+            --accent-soft: #f3c48b;
+            --teal: #2d7a78;
+            --shadow: 0 24px 60px rgba(90, 58, 24, 0.14);
+            --radius-xl: 32px;
+            --radius-lg: 24px;
+            --radius-md: 18px;
+            --radius-sm: 12px;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -12,111 +31,303 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: "Avenir Next", "PingFang SC", "Helvetica Neue", sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(255, 255, 255, 0.85), transparent 30%),
+                radial-gradient(circle at top right, rgba(45, 122, 120, 0.12), transparent 28%),
+                linear-gradient(180deg, #f8eddc 0%, #f3e4ce 48%, #efdcc0 100%);
             min-height: 100vh;
-            padding: 2rem;
+            padding: 32px 24px 48px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before,
+        body::after {
+            content: "";
+            position: fixed;
+            z-index: -1;
+            border-radius: 999px;
+            filter: blur(6px);
+            opacity: 0.65;
+        }
+
+        body::before {
+            width: 240px;
+            height: 240px;
+            top: 70px;
+            left: -80px;
+            background: rgba(210, 104, 61, 0.18);
+        }
+
+        body::after {
+            width: 280px;
+            height: 280px;
+            right: -100px;
+            bottom: 80px;
+            background: rgba(45, 122, 120, 0.16);
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1320px;
             margin: 0 auto;
         }
 
+        .topbar,
+        .config-panel,
+        .preview-panel {
+            background: var(--panel);
+            backdrop-filter: blur(14px);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow);
+        }
+
         header {
-            text-align: center;
-            margin-bottom: 2rem;
+            margin-bottom: 18px;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            padding: 18px 22px;
+        }
+
+        .brand-mark {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-badge {
+            display: grid;
+            place-items: center;
+            width: 44px;
+            height: 44px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-soft));
             color: white;
+            font-size: 1.1rem;
+            font-weight: 700;
         }
 
-        header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
+        .brand-copy h1 {
+            font-size: 1.12rem;
+            line-height: 1.2;
+            margin-bottom: 2px;
+            font-family: "Avenir Next", "PingFang SC", "Helvetica Neue", sans-serif;
+            letter-spacing: 0;
         }
 
-        header p {
-            opacity: 0.9;
+        .brand-copy p {
+            font-size: 0.92rem;
+            color: var(--muted);
+            line-height: 1.4;
+        }
+
+        .topbar-tips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .topbar-tips span {
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.68);
+            border: 1px solid rgba(103, 70, 38, 0.08);
+            color: var(--text);
+            font-size: 0.88rem;
+            font-weight: 600;
         }
 
         .editor-container {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            align-items: start;
+            grid-template-columns: minmax(320px, 1fr) minmax(360px, 1.08fr);
+            gap: 24px;
+            align-items: stretch;
         }
 
         .config-panel {
-            background: white;
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 28px;
         }
 
-        .config-panel h2 {
-            margin-bottom: 1.5rem;
-            color: #333;
+        .config-panel h2,
+        .preview-panel h3 {
+            margin-bottom: 8px;
+            color: var(--text);
+            font-size: 1.65rem;
+        }
+
+        .section-lead,
+        .preview-copy {
+            margin-bottom: 22px;
+            color: var(--muted);
+            line-height: 1.7;
         }
 
         .form-group {
-            margin-bottom: 1.5rem;
+            margin-bottom: 22px;
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 0.5rem;
-            color: #555;
-            font-weight: 500;
+            margin-bottom: 10px;
+            color: var(--text);
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
         }
 
         .form-group input[type="text"],
-        .form-group input[type="number"] {
+        .form-group input[type="number"],
+        .preset-select,
+        .share-url-input {
             width: 100%;
-            padding: 0.75rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
+            padding: 14px 16px;
+            border: 1px solid rgba(103, 70, 38, 0.14);
+            border-radius: 16px;
             font-size: 1rem;
-            transition: border-color 0.3s;
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.8);
+            transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s;
         }
 
-        .form-group input:focus {
+        .form-group input:focus,
+        .preset-select:focus,
+        .share-url-input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: rgba(210, 104, 61, 0.55);
+            box-shadow: 0 0 0 4px rgba(210, 104, 61, 0.12);
+            transform: translateY(-1px);
+        }
+
+        .preset-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .preset-toolbar {
+            display: grid;
+            grid-template-columns: minmax(0, 1.3fr) minmax(220px, 0.7fr);
+            gap: 12px;
+            align-items: stretch;
+        }
+
+        .preset-status {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px 16px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.68);
+            border: 1px solid rgba(103, 70, 38, 0.1);
+        }
+
+        .preset-current {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .preset-status-badge {
+            display: inline-flex;
+            align-items: center;
+            width: fit-content;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--muted);
+            background: rgba(103, 70, 38, 0.08);
+        }
+
+        .preset-status-badge.dirty {
+            color: #8a431f;
+            background: rgba(210, 104, 61, 0.16);
+        }
+
+        .preset-status-badge.success {
+            color: #215b59;
+            background: rgba(45, 122, 120, 0.16);
+        }
+
+        .preset-status-badge.info {
+            color: var(--muted);
+            background: rgba(103, 70, 38, 0.08);
+        }
+
+        .preset-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .preset-actions .btn {
+            font-size: 0.9rem;
+            padding: 12px 14px;
+        }
+
+        .preset-actions .btn-wide {
+            grid-column: 1 / -1;
+        }
+
+        .btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.45;
+            transform: none;
+            box-shadow: none;
         }
 
         .theme-selector {
             display: flex;
-            gap: 0.5rem;
+            gap: 10px;
             flex-wrap: wrap;
         }
 
         .theme-option {
-            padding: 0.5rem 1rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
+            padding: 11px 16px;
+            border: 1px solid rgba(103, 70, 38, 0.12);
+            border-radius: 999px;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.25s;
+            background: rgba(255, 255, 255, 0.8);
+            color: var(--text);
+            font-weight: 600;
         }
 
         .theme-option:hover {
-            border-color: #667eea;
-            background: #f5f5f5;
+            border-color: rgba(210, 104, 61, 0.45);
+            background: rgba(255, 255, 255, 0.96);
+            transform: translateY(-1px);
         }
 
         .theme-option.active {
-            border-color: #667eea;
-            background: #667eea;
+            border-color: transparent;
+            background: linear-gradient(135deg, var(--accent), var(--accent-soft));
             color: white;
+            box-shadow: 0 10px 20px rgba(210, 104, 61, 0.24);
         }
 
         .options-list {
-            margin-bottom: 1rem;
+            display: grid;
+            gap: 10px;
+            margin-bottom: 14px;
         }
 
         .option-item {
             display: flex;
-            gap: 0.5rem;
-            margin-bottom: 0.5rem;
+            gap: 10px;
             align-items: center;
+            padding: 10px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.52);
+            border: 1px solid rgba(103, 70, 38, 0.08);
         }
 
         .option-item input[type="text"] {
@@ -124,93 +335,141 @@
         }
 
         .option-item input[type="number"] {
-            width: 80px;
+            width: 96px;
         }
 
         .btn {
-            padding: 0.75rem 1.5rem;
+            padding: 14px 18px;
             border: none;
-            border-radius: 8px;
+            border-radius: 16px;
             font-size: 1rem;
             cursor: pointer;
-            transition: all 0.3s;
-            font-weight: 500;
+            transition: transform 0.25s, box-shadow 0.25s, background 0.25s;
+            font-weight: 700;
         }
 
         .btn-secondary {
-            background: #f5f5f5;
-            color: #333;
+            background: rgba(255, 255, 255, 0.9);
+            color: var(--text);
+            border: 1px solid rgba(103, 70, 38, 0.12);
         }
 
         .btn-secondary:hover {
-            background: #e0e0e0;
+            background: white;
+            transform: translateY(-1px);
+            box-shadow: 0 10px 18px rgba(70, 45, 17, 0.08);
         }
 
         .btn-danger {
-            background: #ff4444;
+            background: #d95c48;
             color: white;
-            padding: 0.5rem 1rem;
+            padding: 11px 14px;
             font-size: 0.875rem;
+            border-radius: 14px;
         }
 
         .btn-danger:hover {
-            background: #cc0000;
+            background: #bd4634;
         }
 
         .btn-primary {
-            background: #667eea;
+            background: linear-gradient(135deg, var(--accent-strong), var(--accent));
             color: white;
             width: 100%;
+            box-shadow: 0 16px 30px rgba(210, 104, 61, 0.26);
         }
 
         .btn-primary:hover {
-            background: #5568d3;
+            transform: translateY(-1px);
+            box-shadow: 0 18px 34px rgba(210, 104, 61, 0.32);
         }
 
         .preview-panel {
-            background: white;
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 28px;
             text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
         }
 
-        .preview-panel h3 {
-            margin-bottom: 1.5rem;
-            color: #333;
+        .preview-panel h3,
+        .preview-copy {
+            text-align: left;
+        }
+
+        .preview-stage {
+            position: relative;
+            display: grid;
+            place-items: center;
+            min-height: 460px;
+            padding: 20px;
+            border-radius: 28px;
+            background:
+                radial-gradient(circle at center, rgba(255, 255, 255, 0.94), rgba(255, 248, 239, 0.65) 58%, rgba(243, 196, 139, 0.35) 100%);
+            border: 1px solid rgba(103, 70, 38, 0.08);
+        }
+
+        .preview-stage::before,
+        .preview-stage::after {
+            content: "";
+            position: absolute;
+            border-radius: 999px;
+            z-index: 0;
+        }
+
+        .preview-stage::before {
+            width: 180px;
+            height: 180px;
+            top: 18px;
+            left: 12px;
+            background: rgba(210, 104, 61, 0.08);
+        }
+
+        .preview-stage::after {
+            width: 150px;
+            height: 150px;
+            right: 26px;
+            bottom: 28px;
+            background: rgba(45, 122, 120, 0.08);
         }
 
         #preview-wheel {
             width: 100%;
-            max-width: 400px;
+            max-width: 430px;
             margin: 0 auto;
             display: block;
+            position: relative;
+            z-index: 1;
+            filter: drop-shadow(0 18px 36px rgba(72, 47, 20, 0.18));
         }
 
         .wheel-actions {
-            margin-top: 2rem;
+            margin-top: 22px;
             display: flex;
             flex-direction: column;
-            gap: 1rem;
+            gap: 14px;
             align-items: center;
         }
 
         .spin-btn {
-            padding: 1rem 3rem;
-            font-size: 1.25rem;
-            font-weight: bold;
+            width: min(100%, 340px);
+            padding: 16px 28px;
+            font-size: 1.12rem;
+            font-weight: 800;
             border: none;
-            border-radius: 50px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 999px;
+            background: linear-gradient(135deg, var(--teal) 0%, #3a8f8b 100%);
             color: white;
             cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+            transition: transform 0.25s, box-shadow 0.25s;
+            box-shadow: 0 18px 34px rgba(45, 122, 120, 0.24);
         }
 
         .spin-btn:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 22px 40px rgba(45, 122, 120, 0.28);
         }
 
         .spin-btn:disabled {
@@ -220,18 +479,21 @@
         }
 
         .result-display {
-            min-height: 60px;
-            padding: 1rem 1.5rem;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 12px;
-            font-size: 1.25rem;
-            font-weight: bold;
+            width: min(100%, 420px);
+            min-height: 74px;
+            padding: 16px 20px;
+            background: rgba(255, 255, 255, 0.92);
+            color: var(--text);
+            border-radius: 22px;
+            border: 1px solid rgba(103, 70, 38, 0.1);
+            font-size: 1.14rem;
+            font-weight: 700;
             display: flex;
             align-items: center;
             justify-content: center;
             opacity: 0;
             transition: all 0.3s;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
         }
 
         .result-display.show {
@@ -244,17 +506,121 @@
             font-size: 1rem;
         }
 
-        @media (max-width: 768px) {
+        .share-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(27, 18, 9, 0.45);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .share-modal.active {
+            display: flex;
+        }
+
+        .share-modal-content {
+            background: var(--panel-strong);
+            padding: 28px;
+            border-radius: 28px;
+            width: 90%;
+            box-shadow: 0 26px 60px rgba(34, 22, 10, 0.22);
+            border: 1px solid rgba(103, 70, 38, 0.08);
+        }
+
+        .share-modal-content {
+            position: relative;
+            max-width: 500px;
+        }
+
+        .share-modal-content h3 {
+            margin-bottom: 1rem;
+            color: var(--text);
+            font-size: 1.45rem;
+        }
+
+        .modal-copy {
+            color: var(--muted);
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+
+        .share-modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 1rem;
+        }
+
+        .share-modal-actions .btn {
+            flex: 1;
+        }
+
+        .share-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--muted);
+        }
+
+        .share-close:hover {
+            color: var(--text);
+        }
+
+        @media (max-width: 1080px) {
             .editor-container {
                 grid-template-columns: 1fr;
             }
 
-            header h1 {
-                font-size: 2rem;
+            .preset-toolbar {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 18px 14px 36px;
             }
 
-            body {
-                padding: 1rem;
+            .topbar,
+            .config-panel,
+            .preview-panel,
+            .share-modal-content {
+                border-radius: 24px;
+                padding: 22px;
+            }
+
+            .topbar {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .topbar-tips {
+                width: 100%;
+            }
+
+            .preset-actions {
+                grid-template-columns: 1fr;
+            }
+
+            .option-item {
+                display: grid;
+                grid-template-columns: 1fr 92px auto;
+            }
+
+            .preview-stage {
+                min-height: 360px;
+                padding: 14px;
+            }
+
+            .share-modal-actions {
+                flex-direction: column;
             }
         }
     </style>
@@ -262,17 +628,79 @@
 <body>
     <div class="container">
         <header>
-            <h1>🎡 转盘生成器</h1>
-            <p>创建自定义转盘，导出为独立 HTML 文件</p>
+            <div class="topbar">
+                <div class="brand-mark">
+                    <div class="brand-badge">🎡</div>
+                    <div class="brand-copy">
+                        <h1>在线决策转盘</h1>
+                        <p>改完左侧配置，右侧立刻可转。</p>
+                    </div>
+                </div>
+                <div class="topbar-tips">
+                    <span>即时预览</span>
+                    <span>支持权重</span>
+                    <span>可分享</span>
+                </div>
+            </div>
         </header>
 
         <div class="editor-container">
             <div class="config-panel">
-                <h2>配置转盘</h2>
+                <h2>配置面板</h2>
+                <p class="section-lead">所有改动都会实时同步到右侧转盘。保存成预设后，下次打开还可以继续沿用。</p>
 
                 <div class="form-group">
                     <label for="title-input">标题</label>
                     <input type="text" id="title-input" placeholder="今晚吃什么" value="我的转盘">
+                </div>
+
+                <div class="form-group">
+                    <label>📋 快速预设</label>
+                    <div class="preset-container">
+                        <div class="preset-toolbar">
+                            <select id="preset-selector" class="preset-select">
+                                <option value="">选择一个预设...</option>
+                                <optgroup label="生活场景">
+                                    <option value="dinner">🍜 今晚吃什么</option>
+                                    <option value="lunch">🍱 午餐选择</option>
+                                </optgroup>
+                                <optgroup label="娱乐场景">
+                                    <option value="weekend">🎮 周末活动</option>
+                                    <option value="movie">🎬 电影类型</option>
+                                </optgroup>
+                                <optgroup label="工作场景">
+                                    <option value="team">👥 团队活动</option>
+                                </optgroup>
+                                <optgroup label="决策工具">
+                                    <option value="yes-no">🎯 是或否</option>
+                                </optgroup>
+                                <optgroup label="我的预设" id="user-presets-group">
+                                    <!-- Dynamic user presets will be added here -->
+                                </optgroup>
+                            </select>
+                            <div class="preset-status">
+                                <div class="preset-current" id="preset-current">当前：未绑定预设</div>
+                                <div class="preset-status-badge info" id="preset-status">当前是未绑定草稿</div>
+                            </div>
+                        </div>
+                        <div class="preset-actions">
+                            <button type="button" class="btn btn-primary btn-wide" id="preset-save-btn">
+                                💾 保存为预设
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="duplicate-preset-btn">
+                                ＋ 另存为新预设
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="rename-preset-btn">
+                                ✏️ 重命名
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="delete-preset-btn">
+                                🗑️ 删除
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="share-url-btn">
+                                🔗 分享链接
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -295,17 +723,18 @@
                         + 添加选项
                     </button>
                 </div>
-
-                <button type="button" class="btn btn-primary" id="export-btn">
-                    生成转盘文件
-                </button>
             </div>
 
             <div class="preview-panel">
-                <h3>🎮 转盘预览</h3>
-                <svg id="preview-wheel" viewBox="0 0 500 500">
-                    <!-- Wheel will be rendered here -->
-                </svg>
+                <div>
+                    <h3>结果舞台</h3>
+                    <p class="preview-copy">当你准备好了，就让转盘替你做决定。旋转结束后，结果会直接显示在下方。</p>
+                    <div class="preview-stage">
+                        <svg id="preview-wheel" viewBox="0 0 500 500">
+                            <!-- Wheel will be rendered here -->
+                        </svg>
+                    </div>
+                </div>
                 <div class="wheel-actions">
                     <button type="button" class="spin-btn" id="spin-btn">
                         🎯 开始旋转
@@ -313,6 +742,32 @@
                     <div class="result-display placeholder" id="result-display">
                         点击按钮开始旋转
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="share-modal" id="share-modal">
+            <div class="share-modal-content">
+                <button class="share-close" id="share-close">&times;</button>
+                <h3>🔗 分享转盘</h3>
+                <p>复制下面的链接，分享给朋友：</p>
+                <input type="text" class="share-url-input" id="share-url-input" readonly>
+                <div class="share-modal-actions">
+                    <button type="button" class="btn btn-primary" id="copy-url-btn">📋 复制链接</button>
+                    <button type="button" class="btn btn-secondary" id="close-modal-btn">关闭</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="share-modal" id="preset-name-modal">
+            <div class="share-modal-content">
+                <button class="share-close" id="preset-name-close">&times;</button>
+                <h3 id="preset-name-title">保存预设</h3>
+                <p class="modal-copy" id="preset-name-copy">请输入预设名称。</p>
+                <input type="text" class="share-url-input" id="preset-name-input" placeholder="我的预设">
+                <div class="share-modal-actions">
+                    <button type="button" class="btn btn-primary" id="preset-name-confirm-btn">确定</button>
+                    <button type="button" class="btn btn-secondary" id="preset-name-cancel-btn">取消</button>
                 </div>
             </div>
         </div>
