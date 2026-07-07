@@ -2,9 +2,10 @@
  * Main application entry point
  */
 
-import { generateId, debounce, weightedRandom } from './utils.js';
+import { generateId, debounce } from './utils.js';
 import { assignColors, getThemeNames } from './themes.js';
-import { renderWheel, calculateSectorAngles } from './wheel.js';
+import { renderWheel } from './wheel.js';
+import { spinWheel, resetRotation, updateCenterText } from './spin.js';
 import { PresetManager } from './preset-manager.js';
 import { decodeConfigFromURL, generateShareURL, hasConfigInURL } from './url-handler.js';
 
@@ -59,7 +60,6 @@ function areConfigsEqual(left, right) {
 const state = {
     config: createDefaultConfig(),
     isSpinning: false,
-    currentRotation: 0,
     currentPresetId: null,
     isPresetDirty: false,
     baselinePresetConfig: null,
@@ -71,6 +71,7 @@ const state = {
 
 let elements = {};
 let presetNameModalResolver = null;
+let lastFocusedElement = null;
 
 function init() {
     cacheElements();
@@ -165,6 +166,7 @@ function setupEventListeners() {
     elements.presetNameInput.addEventListener('keydown', handlePresetNameModalKeydown);
     elements.optionsList.addEventListener('input', handleOptionInput);
     elements.optionsList.addEventListener('click', handleOptionClick);
+    document.addEventListener('keydown', handleModalKeydown);
 }
 
 function handlePresetNameModalKeydown(e) {
@@ -194,7 +196,7 @@ function openPresetNameModal({
     elements.presetNameCopy.textContent = description;
     elements.presetNameInput.value = value;
     elements.presetNameConfirmBtn.textContent = confirmText;
-    elements.presetNameModal.classList.add('active');
+    openModal(elements.presetNameModal, elements.presetNameInput);
 
     requestAnimationFrame(() => {
         elements.presetNameInput.focus();
@@ -207,7 +209,7 @@ function openPresetNameModal({
 }
 
 function closePresetNameModal(value) {
-    elements.presetNameModal.classList.remove('active');
+    closeModal(elements.presetNameModal);
 
     if (presetNameModalResolver) {
         const resolve = presetNameModalResolver;
@@ -292,7 +294,9 @@ function selectTheme(themeName) {
 
     const themeOptions = elements.themeSelector.querySelectorAll('.theme-option');
     themeOptions.forEach(option => {
-        option.classList.toggle('active', option.dataset.theme === themeName);
+        const isActive = option.dataset.theme === themeName;
+        option.classList.toggle('active', isActive);
+        option.setAttribute('aria-pressed', String(isActive));
     });
 
     handleConfigMutation();
@@ -310,7 +314,8 @@ function renderThemeSelector() {
             berry: '浆果',
             fresh: '清新'
         };
-        return `<div class="theme-option ${isActive}" data-theme="${theme}">${themeNames[theme]}</div>`;
+        const pressed = theme === state.config.theme ? 'true' : 'false';
+        return `<button type="button" class="theme-option ${isActive}" data-theme="${theme}" aria-pressed="${pressed}">${themeNames[theme]}</button>`;
     }).join('');
 }
 
@@ -323,6 +328,7 @@ function renderOptionsList() {
                 placeholder="选项 ${index + 1}"
                 data-field="label"
                 data-id="${item.id}"
+                aria-label="选项 ${index + 1} 名称"
             >
             <input
                 type="number"
@@ -331,12 +337,14 @@ function renderOptionsList() {
                 placeholder="权重"
                 data-field="weight"
                 data-id="${item.id}"
+                aria-label="选项 ${index + 1} 权重"
             >
             <button
                 type="button"
                 class="btn btn-danger"
                 data-action="remove"
                 data-id="${item.id}"
+                aria-label="删除选项 ${index + 1}"
             >×</button>
         </div>
     `).join('');
@@ -404,6 +412,7 @@ function updateWheelPreview() {
         radius: 200,
         showPointer: true
     });
+    resetRotation();
 }
 
 function updateMobileQuickBar(statusText) {
@@ -428,7 +437,7 @@ function handleMobileSpin() {
     handleSpin();
 }
 
-function handleSpin() {
+async function handleSpin() {
     if (state.isSpinning) return;
     if (state.config.items.length < 2) {
         alert('至少需要 2 个选项才能旋转');
@@ -441,37 +450,30 @@ function handleSpin() {
     elements.resultDisplay.textContent = '🎰 旋转中...';
     elements.resultDisplay.classList.add('show');
     updateMobileQuickBar('旋转中...');
+    updateCenterText('旋转中...', elements.previewWheel);
 
-    const winner = weightedRandom(state.config.items);
-    const angles = calculateSectorAngles(state.config.items);
-    const winnerIndex = state.config.items.findIndex(item => item.id === winner.id);
-    const winnerAngle = angles[winnerIndex].center;
-    const finalRotation = state.currentRotation + (360 * 5) + (360 - winnerAngle);
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const spinDuration = prefersReducedMotion ? 0 : 4000;
 
-    const wheelGroup = elements.previewWheel.querySelector('#wheel-container');
-    if (wheelGroup) {
-        wheelGroup.style.transformOrigin = '250px 250px';
-        wheelGroup.style.transition = 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
-        wheelGroup.style.transform = `rotate(${finalRotation}deg)`;
-    }
+    try {
+        const winner = await spinWheel(state.config, elements.previewWheel, null, {
+            spins: 5,
+            duration: spinDuration,
+            easing: 'cubic-bezier(0.17, 0.67, 0.12, 0.99)'
+        });
 
-    const centerText = elements.previewWheel.querySelector('text[dominant-baseline="middle"]');
-    if (centerText) {
-        centerText.textContent = '旋转中...';
-    }
-
-    setTimeout(() => {
-        state.isSpinning = false;
-        state.currentRotation = finalRotation;
-        setSpinControlsDisabled(false);
-
-        if (centerText) {
-            centerText.textContent = winner.label;
-        }
-
+        updateCenterText(winner.label, elements.previewWheel);
         elements.resultDisplay.innerHTML = `🎉 恭喜！结果是：<strong>${winner.label}</strong>`;
         updateMobileQuickBar(`结果：${winner.label}`);
-    }, 4000);
+    } catch (error) {
+        console.error('Spin failed:', error);
+        updateCenterText(state.config.title || '开始', elements.previewWheel);
+        elements.resultDisplay.textContent = error.message || '旋转失败，请重试';
+        updateMobileQuickBar('旋转失败，请重试');
+    } finally {
+        state.isSpinning = false;
+        setSpinControlsDisabled(false);
+    }
 }
 
 export function getConfig() {
@@ -784,11 +786,95 @@ function deleteCurrentPreset() {
 
 function showShareModal() {
     elements.shareUrlInput.value = generateShareURL(getConfig());
-    elements.shareModal.classList.add('active');
+    openModal(elements.shareModal, elements.copyUrlBtn);
 }
 
 function hideShareModal() {
-    elements.shareModal.classList.remove('active');
+    closeModal(elements.shareModal);
+}
+
+function getFocusableElements(container) {
+    return Array.from(container.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    )).filter(element => !element.disabled && element.offsetParent !== null);
+}
+
+function isFocusableElement(element) {
+    return Boolean(element && !element.disabled && element.offsetParent !== null);
+}
+
+function openModal(modal, focusTarget) {
+    lastFocusedElement = document.activeElement;
+    modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
+
+    requestAnimationFrame(() => {
+        const focusableElements = getFocusableElements(modal);
+        const target = isFocusableElement(focusTarget) ? focusTarget : focusableElements[0];
+        target?.focus();
+    });
+}
+
+function closeModal(modal) {
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+
+    if (lastFocusedElement && document.contains(lastFocusedElement)) {
+        lastFocusedElement.focus();
+    }
+
+    lastFocusedElement = null;
+}
+
+function getActiveModal() {
+    return [elements.shareModal, elements.presetNameModal].find(modal => modal.classList.contains('active'));
+}
+
+function closeActiveModal() {
+    if (elements.presetNameModal.classList.contains('active')) {
+        closePresetNameModal(null);
+        return;
+    }
+
+    if (elements.shareModal.classList.contains('active')) {
+        hideShareModal();
+    }
+}
+
+function handleModalKeydown(e) {
+    const activeModal = getActiveModal();
+    if (!activeModal) return;
+
+    if (e.key === 'Escape') {
+        e.preventDefault();
+        closeActiveModal();
+        return;
+    }
+
+    if (e.key !== 'Tab') return;
+
+    const focusableElements = getFocusableElements(activeModal);
+    if (focusableElements.length === 0) return;
+
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+
+    if (!activeModal.contains(document.activeElement)) {
+        e.preventDefault();
+        (e.shiftKey ? lastElement : firstElement).focus();
+        return;
+    }
+
+    if (e.shiftKey && document.activeElement === firstElement) {
+        e.preventDefault();
+        lastElement.focus();
+        return;
+    }
+
+    if (!e.shiftKey && document.activeElement === lastElement) {
+        e.preventDefault();
+        firstElement.focus();
+    }
 }
 
 async function copyShareURL() {

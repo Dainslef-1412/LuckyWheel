@@ -299,6 +299,7 @@
             background: rgba(255, 255, 255, 0.8);
             color: var(--text);
             font-weight: 600;
+            font: inherit;
         }
 
         .theme-option:hover {
@@ -526,6 +527,10 @@
             display: flex;
         }
 
+        .share-modal[aria-hidden="true"] {
+            display: none;
+        }
+
         .share-modal-content {
             background: var(--panel-strong);
             padding: 28px;
@@ -575,6 +580,17 @@
 
         .share-close:hover {
             color: var(--text);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                scroll-behavior: auto !important;
+                transition-duration: 0.01ms !important;
+            }
         }
 
         @media (max-width: 1080px) {
@@ -779,13 +795,13 @@
                 </div>
 
                 <div class="form-group">
-                    <label>主题</label>
-                    <div class="theme-selector" id="theme-selector">
-                        <div class="theme-option active" data-theme="forest">森林</div>
-                        <div class="theme-option" data-theme="ocean">海洋</div>
-                        <div class="theme-option" data-theme="sunset">夕阳</div>
-                        <div class="theme-option" data-theme="berry">浆果</div>
-                        <div class="theme-option" data-theme="fresh">清新</div>
+                    <label id="theme-selector-label">主题</label>
+                    <div class="theme-selector" id="theme-selector" role="group" aria-labelledby="theme-selector-label">
+                        <button type="button" class="theme-option active" data-theme="forest" aria-pressed="true">森林</button>
+                        <button type="button" class="theme-option" data-theme="ocean" aria-pressed="false">海洋</button>
+                        <button type="button" class="theme-option" data-theme="sunset" aria-pressed="false">夕阳</button>
+                        <button type="button" class="theme-option" data-theme="berry" aria-pressed="false">浆果</button>
+                        <button type="button" class="theme-option" data-theme="fresh" aria-pressed="false">清新</button>
                     </div>
                 </div>
 
@@ -814,7 +830,7 @@
                     <button type="button" class="spin-btn" id="spin-btn">
                         🎯 开始旋转
                     </button>
-                    <div class="result-display placeholder" id="result-display">
+                    <div class="result-display placeholder" id="result-display" role="status" aria-live="polite" aria-atomic="true">
                         点击按钮开始旋转
                     </div>
                 </div>
@@ -831,11 +847,11 @@
             </button>
         </div>
 
-        <div class="share-modal" id="share-modal">
+        <div class="share-modal" id="share-modal" role="dialog" aria-modal="true" aria-labelledby="share-modal-title" aria-describedby="share-modal-copy" aria-hidden="true">
             <div class="share-modal-content">
-                <button class="share-close" id="share-close">&times;</button>
-                <h3>🔗 分享转盘</h3>
-                <p>复制下面的链接，分享给朋友：</p>
+                <button class="share-close" id="share-close" aria-label="关闭分享转盘弹窗">&times;</button>
+                <h3 id="share-modal-title">🔗 分享转盘</h3>
+                <p id="share-modal-copy">复制下面的链接，分享给朋友：</p>
                 <input type="text" class="share-url-input" id="share-url-input" readonly>
                 <div class="share-modal-actions">
                     <button type="button" class="btn btn-primary" id="copy-url-btn">📋 复制链接</button>
@@ -844,9 +860,9 @@
             </div>
         </div>
 
-        <div class="share-modal" id="preset-name-modal">
+        <div class="share-modal" id="preset-name-modal" role="dialog" aria-modal="true" aria-labelledby="preset-name-title" aria-describedby="preset-name-copy" aria-hidden="true">
             <div class="share-modal-content">
-                <button class="share-close" id="preset-name-close">&times;</button>
+                <button class="share-close" id="preset-name-close" aria-label="关闭预设名称弹窗">&times;</button>
                 <h3 id="preset-name-title">保存预设</h3>
                 <p class="modal-copy" id="preset-name-copy">请输入预设名称。</p>
                 <input type="text" class="share-url-input" id="preset-name-input" placeholder="我的预设">
