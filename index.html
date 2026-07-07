@@ -299,6 +299,7 @@
             background: rgba(255, 255, 255, 0.8);
             color: var(--text);
             font-weight: 600;
+            font: inherit;
         }
 
         .theme-option:hover {
@@ -506,6 +507,10 @@
             font-size: 1rem;
         }
 
+        .mobile-decision-bar {
+            display: none;
+        }
+
         .share-modal {
             display: none;
             position: fixed;
@@ -520,6 +525,10 @@
 
         .share-modal.active {
             display: flex;
+        }
+
+        .share-modal[aria-hidden="true"] {
+            display: none;
         }
 
         .share-modal-content {
@@ -573,6 +582,17 @@
             color: var(--text);
         }
 
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                scroll-behavior: auto !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
         @media (max-width: 1080px) {
             .editor-container {
                 grid-template-columns: 1fr;
@@ -585,7 +605,7 @@
 
         @media (max-width: 768px) {
             body {
-                padding: 18px 14px 36px;
+                padding: 18px 14px 112px;
             }
 
             .topbar,
@@ -611,7 +631,19 @@
 
             .option-item {
                 display: grid;
-                grid-template-columns: 1fr 92px auto;
+                grid-template-columns: minmax(0, 1fr) 88px 44px;
+                gap: 8px;
+                padding: 8px;
+            }
+
+            .option-item input[type="number"] {
+                width: 100%;
+            }
+
+            .option-item .btn-danger {
+                width: 44px;
+                min-height: 44px;
+                padding: 0;
             }
 
             .preview-stage {
@@ -621,6 +653,65 @@
 
             .share-modal-actions {
                 flex-direction: column;
+            }
+
+            .mobile-decision-bar {
+                position: fixed;
+                left: 12px;
+                right: 12px;
+                bottom: max(12px, env(safe-area-inset-bottom));
+                z-index: 900;
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto;
+                gap: 12px;
+                align-items: center;
+                padding: 12px;
+                border-radius: 22px;
+                background: rgba(255, 253, 248, 0.96);
+                border: 1px solid rgba(103, 70, 38, 0.14);
+                box-shadow: 0 18px 44px rgba(34, 22, 10, 0.22);
+                backdrop-filter: blur(14px);
+            }
+
+            .mobile-decision-meta {
+                min-width: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 3px;
+            }
+
+            .mobile-option-count {
+                color: var(--muted);
+                font-size: 0.78rem;
+                font-weight: 700;
+            }
+
+            .mobile-result {
+                color: var(--text);
+                font-size: 0.96rem;
+                font-weight: 800;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .mobile-spin-btn {
+                min-height: 46px;
+                padding: 0 18px;
+                border: none;
+                border-radius: 999px;
+                background: linear-gradient(135deg, var(--teal) 0%, #3a8f8b 100%);
+                color: white;
+                font-size: 0.98rem;
+                font-weight: 800;
+                cursor: pointer;
+                box-shadow: 0 14px 26px rgba(45, 122, 120, 0.24);
+            }
+
+            .mobile-spin-btn:disabled {
+                opacity: 0.55;
+                cursor: not-allowed;
+                box-shadow: none;
             }
         }
     </style>
@@ -704,13 +795,13 @@
                 </div>
 
                 <div class="form-group">
-                    <label>主题</label>
-                    <div class="theme-selector" id="theme-selector">
-                        <div class="theme-option active" data-theme="forest">森林</div>
-                        <div class="theme-option" data-theme="ocean">海洋</div>
-                        <div class="theme-option" data-theme="sunset">夕阳</div>
-                        <div class="theme-option" data-theme="berry">浆果</div>
-                        <div class="theme-option" data-theme="fresh">清新</div>
+                    <label id="theme-selector-label">主题</label>
+                    <div class="theme-selector" id="theme-selector" role="group" aria-labelledby="theme-selector-label">
+                        <button type="button" class="theme-option active" data-theme="forest" aria-pressed="true">森林</button>
+                        <button type="button" class="theme-option" data-theme="ocean" aria-pressed="false">海洋</button>
+                        <button type="button" class="theme-option" data-theme="sunset" aria-pressed="false">夕阳</button>
+                        <button type="button" class="theme-option" data-theme="berry" aria-pressed="false">浆果</button>
+                        <button type="button" class="theme-option" data-theme="fresh" aria-pressed="false">清新</button>
                     </div>
                 </div>
 
@@ -739,18 +830,28 @@
                     <button type="button" class="spin-btn" id="spin-btn">
                         🎯 开始旋转
                     </button>
-                    <div class="result-display placeholder" id="result-display">
+                    <div class="result-display placeholder" id="result-display" role="status" aria-live="polite" aria-atomic="true">
                         点击按钮开始旋转
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="share-modal" id="share-modal">
+        <div class="mobile-decision-bar" id="mobile-decision-bar">
+            <div class="mobile-decision-meta">
+                <span class="mobile-option-count" id="mobile-option-count">3 个选项</span>
+                <strong class="mobile-result" id="mobile-result">准备就绪</strong>
+            </div>
+            <button type="button" class="mobile-spin-btn" id="mobile-spin-btn">
+                开始旋转
+            </button>
+        </div>
+
+        <div class="share-modal" id="share-modal" role="dialog" aria-modal="true" aria-labelledby="share-modal-title" aria-describedby="share-modal-copy" aria-hidden="true">
             <div class="share-modal-content">
-                <button class="share-close" id="share-close">&times;</button>
-                <h3>🔗 分享转盘</h3>
-                <p>复制下面的链接，分享给朋友：</p>
+                <button class="share-close" id="share-close" aria-label="关闭分享转盘弹窗">&times;</button>
+                <h3 id="share-modal-title">🔗 分享转盘</h3>
+                <p id="share-modal-copy">复制下面的链接，分享给朋友：</p>
                 <input type="text" class="share-url-input" id="share-url-input" readonly>
                 <div class="share-modal-actions">
                     <button type="button" class="btn btn-primary" id="copy-url-btn">📋 复制链接</button>
@@ -759,9 +860,9 @@
             </div>
         </div>
 
-        <div class="share-modal" id="preset-name-modal">
+        <div class="share-modal" id="preset-name-modal" role="dialog" aria-modal="true" aria-labelledby="preset-name-title" aria-describedby="preset-name-copy" aria-hidden="true">
             <div class="share-modal-content">
-                <button class="share-close" id="preset-name-close">&times;</button>
+                <button class="share-close" id="preset-name-close" aria-label="关闭预设名称弹窗">&times;</button>
                 <h3 id="preset-name-title">保存预设</h3>
                 <p class="modal-copy" id="preset-name-copy">请输入预设名称。</p>
                 <input type="text" class="share-url-input" id="preset-name-input" placeholder="我的预设">

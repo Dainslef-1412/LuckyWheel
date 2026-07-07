@@ -127,6 +127,7 @@ export function createCenterCircle(config, options = {}) {
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     text.setAttribute('x', centerX);
     text.setAttribute('y', centerY);
+    text.setAttribute('data-role', 'center-text');
     text.setAttribute('text-anchor', 'middle');
     text.setAttribute('dominant-baseline', 'middle');
     text.setAttribute('fill', '#333');
