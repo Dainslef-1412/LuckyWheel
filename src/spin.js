@@ -3,7 +3,7 @@
  */
 
 import { weightedRandom } from './utils.js';
-import { calculateSectorAngles, updateWheelRotation, getWheelRotation } from './wheel.js';
+import { calculateSectorAngles } from './wheel.js';
 
 // Spin state
 let isSpinning = false;
@@ -32,14 +32,19 @@ export function resetRotation() {
     currentRotation = 0;
 }
 
+function normalizeRotation(rotation) {
+    return ((rotation % 360) + 360) % 360;
+}
+
 /**
  * Calculate target rotation to land on specific item
  * @param {Object} winner - Winning item
  * @param {Array} items - All items
  * @param {number} spins - Number of full rotations (default: 5)
+ * @param {number} fromRotation - Current absolute rotation in degrees
  * @returns {number} Target rotation in degrees
  */
-export function calculateTargetRotation(winner, items, spins = 5) {
+export function calculateTargetRotation(winner, items, spins = 5, fromRotation = 0) {
     const angles = calculateSectorAngles(items);
     const winnerIndex = items.findIndex(item => item.id === winner.id);
 
@@ -48,12 +53,11 @@ export function calculateTargetRotation(winner, items, spins = 5) {
     }
 
     const winnerAngle = angles[winnerIndex].center;
+    const currentAngle = normalizeRotation(fromRotation);
+    const targetAngle = normalizeRotation(360 - winnerAngle);
+    const deltaToTarget = normalizeRotation(targetAngle - currentAngle);
 
-    // Calculate rotation needed to position winner at top (90 degrees)
-    // We need to rotate such that winnerAngle ends up at 90 degrees
-    const targetRotation = (360 * spins) + (360 - winnerAngle);
-
-    return targetRotation;
+    return fromRotation + (360 * spins) + deltaToTarget;
 }
 
 /**
@@ -89,8 +93,7 @@ export function spinWheel(config, svgElement, onComplete, options = {}) {
             const winner = weightedRandom(config.items);
 
             // Calculate target rotation
-            const targetRotation = calculateTargetRotation(winner, config.items, spins);
-            const finalRotation = currentRotation + targetRotation;
+            const finalRotation = calculateTargetRotation(winner, config.items, spins, currentRotation);
 
             // Apply CSS transition for smooth animation
             const wheelGroup = svgElement.querySelector('#wheel-container');
@@ -133,7 +136,8 @@ export function spinWheel(config, svgElement, onComplete, options = {}) {
  * @param {SVGSVGElement} svgElement - SVG element
  */
 export function updateCenterText(text, svgElement) {
-    const centerText = svgElement.querySelector('text[dominant-baseline="middle"]');
+    const centerText = svgElement.querySelector('[data-role="center-text"]')
+        || svgElement.querySelector('text[dominant-baseline="middle"]');
     if (centerText) {
         centerText.textContent = text;
     }
@@ -151,7 +155,6 @@ export function showResult(winner, svgElement) {
     const wheelGroup = svgElement.querySelector('#wheel-container');
     if (wheelGroup) {
         const sectors = wheelGroup.querySelectorAll('g > g');
-        const angles = calculateSectorAngles([{ id: winner.id }]);
 
         sectors.forEach((sector, index) => {
             const path = sector.querySelector('path');

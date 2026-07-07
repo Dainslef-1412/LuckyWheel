@@ -2,9 +2,10 @@
  * Main application entry point
  */
 
-import { generateId, debounce, weightedRandom } from './utils.js';
+import { generateId, debounce } from './utils.js';
 import { assignColors, getThemeNames } from './themes.js';
-import { renderWheel, calculateSectorAngles } from './wheel.js';
+import { renderWheel } from './wheel.js';
+import { spinWheel, resetRotation, updateCenterText } from './spin.js';
 import { PresetManager } from './preset-manager.js';
 import { decodeConfigFromURL, generateShareURL, hasConfigInURL } from './url-handler.js';
 
@@ -59,7 +60,6 @@ function areConfigsEqual(left, right) {
 const state = {
     config: createDefaultConfig(),
     isSpinning: false,
-    currentRotation: 0,
     currentPresetId: null,
     isPresetDirty: false,
     baselinePresetConfig: null,
@@ -397,9 +397,10 @@ function updateWheelPreview() {
         radius: 200,
         showPointer: true
     });
+    resetRotation();
 }
 
-function handleSpin() {
+async function handleSpin() {
     if (state.isSpinning) return;
     if (state.config.items.length < 2) {
         alert('至少需要 2 个选项才能旋转');
@@ -411,36 +412,25 @@ function handleSpin() {
     elements.resultDisplay.classList.remove('placeholder', 'show');
     elements.resultDisplay.textContent = '🎰 旋转中...';
     elements.resultDisplay.classList.add('show');
+    updateCenterText('旋转中...', elements.previewWheel);
 
-    const winner = weightedRandom(state.config.items);
-    const angles = calculateSectorAngles(state.config.items);
-    const winnerIndex = state.config.items.findIndex(item => item.id === winner.id);
-    const winnerAngle = angles[winnerIndex].center;
-    const finalRotation = state.currentRotation + (360 * 5) + (360 - winnerAngle);
+    try {
+        const winner = await spinWheel(state.config, elements.previewWheel, null, {
+            spins: 5,
+            duration: 4000,
+            easing: 'cubic-bezier(0.17, 0.67, 0.12, 0.99)'
+        });
 
-    const wheelGroup = elements.previewWheel.querySelector('#wheel-container');
-    if (wheelGroup) {
-        wheelGroup.style.transformOrigin = '250px 250px';
-        wheelGroup.style.transition = 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
-        wheelGroup.style.transform = `rotate(${finalRotation}deg)`;
-    }
-
-    const centerText = elements.previewWheel.querySelector('text[dominant-baseline="middle"]');
-    if (centerText) {
-        centerText.textContent = '旋转中...';
-    }
-
-    setTimeout(() => {
-        state.isSpinning = false;
-        state.currentRotation = finalRotation;
-        elements.spinBtn.disabled = false;
-
-        if (centerText) {
-            centerText.textContent = winner.label;
-        }
-
+        updateCenterText(winner.label, elements.previewWheel);
         elements.resultDisplay.innerHTML = `🎉 恭喜！结果是：<strong>${winner.label}</strong>`;
-    }, 4000);
+    } catch (error) {
+        console.error('Spin failed:', error);
+        updateCenterText(state.config.title || '开始', elements.previewWheel);
+        elements.resultDisplay.textContent = error.message || '旋转失败，请重试';
+    } finally {
+        state.isSpinning = false;
+        elements.spinBtn.disabled = false;
+    }
 }
 
 export function getConfig() {
