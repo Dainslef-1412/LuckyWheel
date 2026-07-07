@@ -7,7 +7,7 @@ import { assignColors, getThemeNames } from './themes.js';
 import { renderWheel } from './wheel.js';
 import { spinWheel, resetRotation, updateCenterText } from './spin.js';
 import { PresetManager } from './preset-manager.js';
-import { decodeConfigFromURL, generateShareURL, hasConfigInURL } from './url-handler.js';
+import { decodeConfigFromURL, generateShareURL, hasConfigInURL, normalizeSharedConfig } from './url-handler.js';
 
 const presetManager = new PresetManager();
 
@@ -25,15 +25,18 @@ function createDefaultConfig() {
 
 function createEditableConfig(config = {}) {
     const fallback = createDefaultConfig();
-    const items = Array.isArray(config.items) && config.items.length > 0 ? config.items : fallback.items;
+    const normalizedConfig = normalizeSharedConfig(config) || fallback;
+    const originalItems = Array.isArray(config.items) ? config.items : [];
 
     return {
-        title: config.title || fallback.title,
-        theme: config.theme || fallback.theme,
-        items: items.map((item, index) => ({
-            id: item.id || generateId(),
-            label: item.label || `选项${index + 1}`,
-            weight: Math.max(1, parseInt(item.weight, 10) || 1)
+        title: normalizedConfig.title,
+        theme: normalizedConfig.theme,
+        items: normalizedConfig.items.map((item, index) => ({
+            id: typeof originalItems[index]?.id === 'string' && originalItems[index].id
+                ? originalItems[index].id.slice(0, 80)
+                : generateId(),
+            label: item.label,
+            weight: item.weight
         }))
     };
 }
@@ -320,34 +323,39 @@ function renderThemeSelector() {
 }
 
 function renderOptionsList() {
-    elements.optionsList.innerHTML = state.config.items.map((item, index) => `
-        <div class="option-item" data-id="${item.id}">
-            <input
-                type="text"
-                value="${item.label}"
-                placeholder="选项 ${index + 1}"
-                data-field="label"
-                data-id="${item.id}"
-                aria-label="选项 ${index + 1} 名称"
-            >
-            <input
-                type="number"
-                value="${item.weight}"
-                min="1"
-                placeholder="权重"
-                data-field="weight"
-                data-id="${item.id}"
-                aria-label="选项 ${index + 1} 权重"
-            >
-            <button
-                type="button"
-                class="btn btn-danger"
-                data-action="remove"
-                data-id="${item.id}"
-                aria-label="删除选项 ${index + 1}"
-            >×</button>
-        </div>
-    `).join('');
+    elements.optionsList.replaceChildren(...state.config.items.map((item, index) => {
+        const row = document.createElement('div');
+        row.className = 'option-item';
+        row.dataset.id = item.id;
+
+        const labelInput = document.createElement('input');
+        labelInput.type = 'text';
+        labelInput.value = item.label;
+        labelInput.placeholder = `选项 ${index + 1}`;
+        labelInput.dataset.field = 'label';
+        labelInput.dataset.id = item.id;
+        labelInput.setAttribute('aria-label', `选项 ${index + 1} 名称`);
+
+        const weightInput = document.createElement('input');
+        weightInput.type = 'number';
+        weightInput.value = item.weight;
+        weightInput.min = '1';
+        weightInput.placeholder = '权重';
+        weightInput.dataset.field = 'weight';
+        weightInput.dataset.id = item.id;
+        weightInput.setAttribute('aria-label', `选项 ${index + 1} 权重`);
+
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'btn btn-danger';
+        removeButton.dataset.action = 'remove';
+        removeButton.dataset.id = item.id;
+        removeButton.setAttribute('aria-label', `删除选项 ${index + 1}`);
+        removeButton.textContent = '×';
+
+        row.append(labelInput, weightInput, removeButton);
+        return row;
+    }));
 }
 
 function addOption() {
@@ -462,8 +470,13 @@ async function handleSpin() {
             easing: 'cubic-bezier(0.17, 0.67, 0.12, 0.99)'
         });
 
+        const winnerLabel = document.createElement('strong');
+        winnerLabel.textContent = winner.label;
+        elements.resultDisplay.replaceChildren(
+            document.createTextNode('🎉 恭喜！结果是：'),
+            winnerLabel
+        );
         updateCenterText(winner.label, elements.previewWheel);
-        elements.resultDisplay.innerHTML = `🎉 恭喜！结果是：<strong>${winner.label}</strong>`;
         updateMobileQuickBar(`结果：${winner.label}`);
     } catch (error) {
         console.error('Spin failed:', error);

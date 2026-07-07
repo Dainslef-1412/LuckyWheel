@@ -7,6 +7,7 @@
     "dev": "vite",
     "test:spin": "node --test tests/spin.test.js",
     "build": "vite build",
+    "test:config": "node tests/config-safety.test.js",
     "preview": "vite preview",
     "deploy": "npm run build && echo 'Ready to deploy! Upload the dist/ folder to your hosting service.'"
   },
