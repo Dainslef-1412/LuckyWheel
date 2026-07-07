@@ -71,6 +71,7 @@ const state = {
 
 let elements = {};
 let presetNameModalResolver = null;
+let lastFocusedElement = null;
 
 function init() {
     cacheElements();
@@ -159,6 +160,7 @@ function setupEventListeners() {
     elements.presetNameInput.addEventListener('keydown', handlePresetNameModalKeydown);
     elements.optionsList.addEventListener('input', debounce(handleOptionInput, 300));
     elements.optionsList.addEventListener('click', handleOptionClick);
+    document.addEventListener('keydown', handleModalKeydown);
 }
 
 function handlePresetNameModalKeydown(e) {
@@ -188,7 +190,7 @@ function openPresetNameModal({
     elements.presetNameCopy.textContent = description;
     elements.presetNameInput.value = value;
     elements.presetNameConfirmBtn.textContent = confirmText;
-    elements.presetNameModal.classList.add('active');
+    openModal(elements.presetNameModal, elements.presetNameInput);
 
     requestAnimationFrame(() => {
         elements.presetNameInput.focus();
@@ -201,7 +203,7 @@ function openPresetNameModal({
 }
 
 function closePresetNameModal(value) {
-    elements.presetNameModal.classList.remove('active');
+    closeModal(elements.presetNameModal);
 
     if (presetNameModalResolver) {
         const resolve = presetNameModalResolver;
@@ -285,7 +287,9 @@ function selectTheme(themeName) {
 
     const themeOptions = elements.themeSelector.querySelectorAll('.theme-option');
     themeOptions.forEach(option => {
-        option.classList.toggle('active', option.dataset.theme === themeName);
+        const isActive = option.dataset.theme === themeName;
+        option.classList.toggle('active', isActive);
+        option.setAttribute('aria-pressed', String(isActive));
     });
 
     handleConfigMutation();
@@ -303,7 +307,8 @@ function renderThemeSelector() {
             berry: '浆果',
             fresh: '清新'
         };
-        return `<div class="theme-option ${isActive}" data-theme="${theme}">${themeNames[theme]}</div>`;
+        const pressed = theme === state.config.theme ? 'true' : 'false';
+        return `<button type="button" class="theme-option ${isActive}" data-theme="${theme}" aria-pressed="${pressed}">${themeNames[theme]}</button>`;
     }).join('');
 }
 
@@ -316,6 +321,7 @@ function renderOptionsList() {
                 placeholder="选项 ${index + 1}"
                 data-field="label"
                 data-id="${item.id}"
+                aria-label="选项 ${index + 1} 名称"
             >
             <input
                 type="number"
@@ -324,12 +330,14 @@ function renderOptionsList() {
                 placeholder="权重"
                 data-field="weight"
                 data-id="${item.id}"
+                aria-label="选项 ${index + 1} 权重"
             >
             <button
                 type="button"
                 class="btn btn-danger"
                 data-action="remove"
                 data-id="${item.id}"
+                aria-label="删除选项 ${index + 1}"
             >×</button>
         </div>
     `).join('');
@@ -414,10 +422,13 @@ async function handleSpin() {
     elements.resultDisplay.classList.add('show');
     updateCenterText('旋转中...', elements.previewWheel);
 
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const spinDuration = prefersReducedMotion ? 0 : 4000;
+
     try {
         const winner = await spinWheel(state.config, elements.previewWheel, null, {
             spins: 5,
-            duration: 4000,
+            duration: spinDuration,
             easing: 'cubic-bezier(0.17, 0.67, 0.12, 0.99)'
         });
 
@@ -742,11 +753,95 @@ function deleteCurrentPreset() {
 
 function showShareModal() {
     elements.shareUrlInput.value = generateShareURL(getConfig());
-    elements.shareModal.classList.add('active');
+    openModal(elements.shareModal, elements.copyUrlBtn);
 }
 
 function hideShareModal() {
-    elements.shareModal.classList.remove('active');
+    closeModal(elements.shareModal);
+}
+
+function getFocusableElements(container) {
+    return Array.from(container.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    )).filter(element => !element.disabled && element.offsetParent !== null);
+}
+
+function isFocusableElement(element) {
+    return Boolean(element && !element.disabled && element.offsetParent !== null);
+}
+
+function openModal(modal, focusTarget) {
+    lastFocusedElement = document.activeElement;
+    modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
+
+    requestAnimationFrame(() => {
+        const focusableElements = getFocusableElements(modal);
+        const target = isFocusableElement(focusTarget) ? focusTarget : focusableElements[0];
+        target?.focus();
+    });
+}
+
+function closeModal(modal) {
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+
+    if (lastFocusedElement && document.contains(lastFocusedElement)) {
+        lastFocusedElement.focus();
+    }
+
+    lastFocusedElement = null;
+}
+
+function getActiveModal() {
+    return [elements.shareModal, elements.presetNameModal].find(modal => modal.classList.contains('active'));
+}
+
+function closeActiveModal() {
+    if (elements.presetNameModal.classList.contains('active')) {
+        closePresetNameModal(null);
+        return;
+    }
+
+    if (elements.shareModal.classList.contains('active')) {
+        hideShareModal();
+    }
+}
+
+function handleModalKeydown(e) {
+    const activeModal = getActiveModal();
+    if (!activeModal) return;
+
+    if (e.key === 'Escape') {
+        e.preventDefault();
+        closeActiveModal();
+        return;
+    }
+
+    if (e.key !== 'Tab') return;
+
+    const focusableElements = getFocusableElements(activeModal);
+    if (focusableElements.length === 0) return;
+
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+
+    if (!activeModal.contains(document.activeElement)) {
+        e.preventDefault();
+        (e.shiftKey ? lastElement : firstElement).focus();
+        return;
+    }
+
+    if (e.shiftKey && document.activeElement === firstElement) {
+        e.preventDefault();
+        lastElement.focus();
+        return;
+    }
+
+    if (!e.shiftKey && document.activeElement === lastElement) {
+        e.preventDefault();
+        firstElement.focus();
+    }
 }
 
 async function copyShareURL() {
