@@ -92,6 +92,7 @@ function init() {
     renderPresetSelector();
     renderPresetUI();
     updateWheelPreview();
+    updateMobileQuickBar('准备就绪');
     setupEventListeners();
 
     console.log('Wheel generator initialized');
@@ -104,7 +105,11 @@ function cacheElements() {
         optionsList: document.getElementById('options-list'),
         addOptionBtn: document.getElementById('add-option'),
         previewWheel: document.getElementById('preview-wheel'),
+        previewPanel: document.querySelector('.preview-panel'),
         spinBtn: document.getElementById('spin-btn'),
+        mobileSpinBtn: document.getElementById('mobile-spin-btn'),
+        mobileOptionCount: document.getElementById('mobile-option-count'),
+        mobileResult: document.getElementById('mobile-result'),
         resultDisplay: document.getElementById('result-display'),
         presetSelector: document.getElementById('preset-selector'),
         presetCurrent: document.getElementById('preset-current'),
@@ -144,6 +149,7 @@ function setupEventListeners() {
 
     elements.addOptionBtn.addEventListener('click', addOption);
     elements.spinBtn.addEventListener('click', handleSpin);
+    elements.mobileSpinBtn.addEventListener('click', handleMobileSpin);
     elements.presetSelector.addEventListener('change', handlePresetSelection);
     elements.presetSaveBtn.addEventListener('click', handlePresetSave);
     elements.duplicatePresetBtn.addEventListener('click', saveAsNewPreset);
@@ -157,7 +163,7 @@ function setupEventListeners() {
     elements.presetNameCancelBtn.addEventListener('click', () => closePresetNameModal(null));
     elements.presetNameClose.addEventListener('click', () => closePresetNameModal(null));
     elements.presetNameInput.addEventListener('keydown', handlePresetNameModalKeydown);
-    elements.optionsList.addEventListener('input', debounce(handleOptionInput, 300));
+    elements.optionsList.addEventListener('input', handleOptionInput);
     elements.optionsList.addEventListener('click', handleOptionClick);
 }
 
@@ -251,6 +257,7 @@ function handleConfigMutation({ rerenderOptions = false } = {}) {
     }
 
     updateWheelPreview();
+    updateMobileQuickBar('准备就绪');
     syncPresetDirtyState();
     renderPresetUI();
 }
@@ -399,6 +406,28 @@ function updateWheelPreview() {
     });
 }
 
+function updateMobileQuickBar(statusText) {
+    if (!elements.mobileOptionCount || !elements.mobileResult) return;
+
+    elements.mobileOptionCount.textContent = `${state.config.items.length} 个选项`;
+    if (statusText) {
+        elements.mobileResult.textContent = statusText;
+    }
+}
+
+function setSpinControlsDisabled(disabled) {
+    elements.spinBtn.disabled = disabled;
+    elements.mobileSpinBtn.disabled = disabled;
+}
+
+function handleMobileSpin() {
+    elements.previewPanel.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+    });
+    handleSpin();
+}
+
 function handleSpin() {
     if (state.isSpinning) return;
     if (state.config.items.length < 2) {
@@ -407,10 +436,11 @@ function handleSpin() {
     }
 
     state.isSpinning = true;
-    elements.spinBtn.disabled = true;
+    setSpinControlsDisabled(true);
     elements.resultDisplay.classList.remove('placeholder', 'show');
     elements.resultDisplay.textContent = '🎰 旋转中...';
     elements.resultDisplay.classList.add('show');
+    updateMobileQuickBar('旋转中...');
 
     const winner = weightedRandom(state.config.items);
     const angles = calculateSectorAngles(state.config.items);
@@ -433,13 +463,14 @@ function handleSpin() {
     setTimeout(() => {
         state.isSpinning = false;
         state.currentRotation = finalRotation;
-        elements.spinBtn.disabled = false;
+        setSpinControlsDisabled(false);
 
         if (centerText) {
             centerText.textContent = winner.label;
         }
 
         elements.resultDisplay.innerHTML = `🎉 恭喜！结果是：<strong>${winner.label}</strong>`;
+        updateMobileQuickBar(`结果：${winner.label}`);
     }, 4000);
 }
 
@@ -453,6 +484,7 @@ export function setConfig(config) {
     renderOptionsList();
     renderThemeSelector();
     updateWheelPreview();
+    updateMobileQuickBar('准备就绪');
     syncPresetDirtyState();
     renderPresetUI();
 }
