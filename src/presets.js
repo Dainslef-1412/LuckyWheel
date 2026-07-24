@@ -10,7 +10,7 @@ export const BUILTIN_PRESETS = [
         category: '生活',
         config: {
             title: '今晚吃什么',
-            theme: 'sunset',
+            theme: 'fresh',
             items: [
                 { id: 'dinner-1', label: '火锅', weight: 2 },
                 { id: 'dinner-2', label: '烧烤', weight: 2 },

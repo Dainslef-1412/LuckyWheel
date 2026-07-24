@@ -3,6 +3,9 @@
  */
 
 import { degToRad, getTotalWeight, calculatePointOnCircle, truncateText } from './utils.js';
+import { getContrastText, getTheme } from './themes.js';
+
+const SVGNS = 'http://www.w3.org/2000/svg';
 
 /**
  * Generate SVG path for a wheel sector
@@ -97,9 +100,10 @@ export function createSectorElement(item, angleRange, index, options = {}) {
     text.setAttribute('y', labelPoint.y);
     text.setAttribute('text-anchor', 'middle');
     text.setAttribute('dominant-baseline', 'middle');
-    text.setAttribute('fill', '#fff');
-    text.setAttribute('font-size', '14');
-    text.setAttribute('font-weight', 'bold');
+    text.setAttribute('fill', getContrastText(item.color));
+    text.setAttribute('font-size', '15');
+    text.setAttribute('font-weight', '700');
+    text.setAttribute('letter-spacing', '0.5');
     text.setAttribute('transform', `rotate(${getLabelRotation(angleRange.center)}, ${labelPoint.x}, ${labelPoint.y})`);
 
     // Truncate text if too long
@@ -124,28 +128,37 @@ export function createCenterCircle(config, options = {}) {
         innerRadius = 50
     } = options;
 
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const accent = getTheme(config.theme).accent;
+    const g = document.createElementNS(SVGNS, 'g');
 
-    // Outer circle
-    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    // Soft halo so the hub lifts off the sectors
+    const halo = document.createElementNS(SVGNS, 'circle');
+    halo.setAttribute('cx', centerX);
+    halo.setAttribute('cy', centerY);
+    halo.setAttribute('r', innerRadius + 6);
+    halo.setAttribute('fill', 'rgba(0, 0, 0, 0.12)');
+    g.appendChild(halo);
+
+    // Hub with a subtle radial gradient and a theme-tinted ring
+    const circle = document.createElementNS(SVGNS, 'circle');
     circle.setAttribute('cx', centerX);
     circle.setAttribute('cy', centerY);
     circle.setAttribute('r', innerRadius);
-    circle.setAttribute('fill', '#fff');
-    circle.setAttribute('stroke', '#333');
-    circle.setAttribute('stroke-width', '3');
+    circle.setAttribute('fill', 'url(#hub-gradient)');
+    circle.setAttribute('stroke', accent);
+    circle.setAttribute('stroke-width', '4');
     g.appendChild(circle);
 
     // Center text
-    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    const text = document.createElementNS(SVGNS, 'text');
     text.setAttribute('x', centerX);
     text.setAttribute('y', centerY);
     text.setAttribute('data-role', 'center-text');
     text.setAttribute('text-anchor', 'middle');
     text.setAttribute('dominant-baseline', 'middle');
-    text.setAttribute('fill', '#333');
+    text.setAttribute('fill', '#2d241b');
     text.setAttribute('font-size', '16');
-    text.setAttribute('font-weight', 'bold');
+    text.setAttribute('font-weight', '800');
     text.textContent = config.title || '开始';
     g.appendChild(text);
 
@@ -165,24 +178,80 @@ export function createPointer(options = {}) {
         pointerSize = 20
     } = options;
 
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const g = document.createElementNS(SVGNS, 'g');
 
-    // Triangle pointer at top
-    const pointer = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-    const points = [
-        { x: centerX, y: centerY - radius - pointerSize },
-        { x: centerX - pointerSize / 2, y: centerY - radius - pointerSize * 2 },
-        { x: centerX + pointerSize / 2, y: centerY - radius - pointerSize * 2 }
-    ];
+    // Downward teardrop pointer overlapping the rim, so it reads as "landing here"
+    const tipY = centerY - radius + 6;
+    const baseY = centerY - radius - pointerSize;
+    const halfW = pointerSize * 0.62;
 
-    pointer.setAttribute('points', points.map(p => `${p.x},${p.y}`).join(' '));
-    pointer.setAttribute('fill', '#ff4444');
+    const pointer = document.createElementNS(SVGNS, 'path');
+    pointer.setAttribute('d', [
+        `M ${centerX} ${tipY}`,
+        `L ${centerX - halfW} ${baseY}`,
+        `Q ${centerX} ${baseY - pointerSize * 0.5} ${centerX + halfW} ${baseY}`,
+        'Z'
+    ].join(' '));
+    pointer.setAttribute('fill', '#e5383b');
     pointer.setAttribute('stroke', '#fff');
-    pointer.setAttribute('stroke-width', '2');
+    pointer.setAttribute('stroke-width', '2.5');
+    pointer.setAttribute('stroke-linejoin', 'round');
+
+    // Small cap where the pointer meets the rim
+    const cap = document.createElementNS(SVGNS, 'circle');
+    cap.setAttribute('cx', centerX);
+    cap.setAttribute('cy', baseY - 1);
+    cap.setAttribute('r', pointerSize * 0.34);
+    cap.setAttribute('fill', '#e5383b');
+    cap.setAttribute('stroke', '#fff');
+    cap.setAttribute('stroke-width', '2');
 
     g.appendChild(pointer);
+    g.appendChild(cap);
 
     return g;
+}
+
+/**
+ * Create SVG <defs> (gradients) and a static outer bezel ring that frames
+ * the wheel like a physical prize wheel.
+ */
+function createWheelFrame(options = {}) {
+    const {
+        centerX = 250,
+        centerY = 250,
+        radius = 200,
+        rimWidth = 9
+    } = options;
+
+    const frag = document.createDocumentFragment();
+
+    const defs = document.createElementNS(SVGNS, 'defs');
+    const grad = document.createElementNS(SVGNS, 'radialGradient');
+    grad.setAttribute('id', 'hub-gradient');
+    grad.setAttribute('cx', '50%');
+    grad.setAttribute('cy', '38%');
+    grad.setAttribute('r', '65%');
+    [['0%', '#ffffff'], ['100%', '#f4e9d8']].forEach(([offset, color]) => {
+        const stop = document.createElementNS(SVGNS, 'stop');
+        stop.setAttribute('offset', offset);
+        stop.setAttribute('stop-color', color);
+        grad.appendChild(stop);
+    });
+    defs.appendChild(grad);
+    frag.appendChild(defs);
+
+    // Bezel: a soft cream ring just outside the sectors
+    const bezel = document.createElementNS(SVGNS, 'circle');
+    bezel.setAttribute('cx', centerX);
+    bezel.setAttribute('cy', centerY);
+    bezel.setAttribute('r', radius + rimWidth);
+    bezel.setAttribute('fill', '#fdf3e6');
+    bezel.setAttribute('stroke', 'rgba(103, 70, 38, 0.18)');
+    bezel.setAttribute('stroke-width', '1.5');
+    frag.appendChild(bezel);
+
+    return frag;
 }
 
 /**
@@ -203,6 +272,9 @@ export function renderWheel(config, svgElement, options = {}) {
     while (svgElement.firstChild) {
         svgElement.removeChild(svgElement.firstChild);
     }
+
+    // Static frame (defs + bezel ring) rendered behind the rotating sectors
+    svgElement.appendChild(createWheelFrame({ centerX, centerY, radius }));
 
     // Calculate angles
     const angles = calculateSectorAngles(config.items);

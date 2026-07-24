@@ -148,7 +148,7 @@
             display: grid;
             grid-template-columns: minmax(320px, 1fr) minmax(360px, 1.08fr);
             gap: 24px;
-            align-items: stretch;
+            align-items: start;
         }
 
         .config-panel {
@@ -428,8 +428,8 @@
             text-align: center;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
-            position: relative;
+            position: sticky;
+            top: 20px;
             overflow: hidden;
         }
 
@@ -442,7 +442,7 @@
             position: relative;
             display: grid;
             place-items: center;
-            min-height: 460px;
+            min-height: 420px;
             padding: 20px;
             border-radius: 28px;
             background:
@@ -634,6 +634,10 @@
         @media (max-width: 1080px) {
             .editor-container {
                 grid-template-columns: 1fr;
+            }
+
+            .preview-panel {
+                position: static;
             }
 
             .preset-toolbar {
