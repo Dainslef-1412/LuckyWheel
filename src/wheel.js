@@ -29,6 +29,19 @@ export function generateSectorPath(centerX, centerY, radius, startAngle, endAngl
 }
 
 /**
+ * Calculate the rotation (in degrees) for a sector label so it never renders
+ * upside down. Labels whose sector center falls on the lower half of the wheel
+ * are flipped by 180° to keep the text upright and readable.
+ * @param {number} centerAngle - Sector center angle in degrees
+ * @returns {number} Rotation in degrees to apply to the label
+ */
+export function getLabelRotation(centerAngle) {
+    const normalized = ((centerAngle % 360) + 360) % 360;
+    const rotation = normalized > 90 && normalized < 270 ? normalized + 180 : normalized;
+    return rotation % 360;
+}
+
+/**
  * Calculate angle ranges for each item based on weights
  * @param {Array} items - Array of items with weight property
  * @returns {Array} Array of angle ranges for each item
@@ -87,7 +100,7 @@ export function createSectorElement(item, angleRange, index, options = {}) {
     text.setAttribute('fill', '#fff');
     text.setAttribute('font-size', '14');
     text.setAttribute('font-weight', 'bold');
-    text.setAttribute('transform', `rotate(${angleRange.center}, ${labelPoint.x}, ${labelPoint.y})`);
+    text.setAttribute('transform', `rotate(${getLabelRotation(angleRange.center)}, ${labelPoint.x}, ${labelPoint.y})`);
 
     // Truncate text if too long
     const truncatedLabel = truncateText(item.label, 15);

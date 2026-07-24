@@ -315,6 +315,44 @@
             box-shadow: 0 10px 20px rgba(210, 104, 61, 0.24);
         }
 
+        .quick-start-hint {
+            font-size: 13px;
+            color: var(--muted);
+            margin: 2px 0 10px;
+        }
+
+        .quick-start {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .quick-start-chip {
+            padding: 9px 15px;
+            border: 1px solid rgba(103, 70, 38, 0.12);
+            border-radius: 999px;
+            cursor: pointer;
+            transition: all 0.25s;
+            background: rgba(255, 255, 255, 0.8);
+            color: var(--text);
+            font: inherit;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .quick-start-chip:hover {
+            border-color: rgba(45, 122, 120, 0.45);
+            background: rgba(255, 255, 255, 0.96);
+            transform: translateY(-1px);
+        }
+
+        .quick-start-chip.active {
+            border-color: transparent;
+            background: linear-gradient(135deg, var(--teal), #4fa6a3);
+            color: white;
+            box-shadow: 0 10px 20px rgba(45, 122, 120, 0.24);
+        }
+
         .options-list {
             display: grid;
             gap: 10px;
@@ -746,6 +784,14 @@
                 </div>
 
                 <div class="form-group">
+                    <label>⚡ 快速开始</label>
+                    <p class="quick-start-hint">选一个模板直接开转，或在下面改成你自己的选项。</p>
+                    <div class="quick-start" id="quick-start">
+                        <!-- Quick-start preset chips rendered here -->
+                    </div>
+                </div>
+
+                <div class="form-group">
                     <label>📋 快速预设</label>
                     <div class="preset-container">
                         <div class="preset-toolbar">
@@ -753,11 +799,9 @@
                                 <option value="">选择一个预设...</option>
                                 <optgroup label="生活场景">
                                     <option value="dinner">🍜 今晚吃什么</option>
-                                    <option value="lunch">🍱 午餐选择</option>
                                 </optgroup>
                                 <optgroup label="娱乐场景">
                                     <option value="weekend">🎮 周末活动</option>
-                                    <option value="movie">🎬 电影类型</option>
                                 </optgroup>
                                 <optgroup label="工作场景">
                                     <option value="team">👥 团队活动</option>

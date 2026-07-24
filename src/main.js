@@ -11,6 +11,10 @@ import { decodeConfigFromURL, generateShareURL, hasConfigInURL, normalizeSharedC
 
 const presetManager = new PresetManager();
 
+// Preset loaded on a first visit so users land on a filled wheel to adjust,
+// instead of empty 选项A/B/C placeholders.
+const DEFAULT_PRESET_ID = 'dinner';
+
 function createDefaultConfig() {
     return {
         title: '我的转盘',
@@ -79,18 +83,28 @@ let lastFocusedElement = null;
 function init() {
     cacheElements();
 
+    // Load priority: shared URL > last session's draft > first-visit default preset.
+    let loaded = false;
+
     if (hasConfigInURL()) {
         const urlConfig = decodeConfigFromURL();
         if (urlConfig) {
             state.config = createEditableConfig(urlConfig);
-            state.presetFeedback = {
-                type: 'info',
-                text: '已从分享链接载入当前配置'
-            };
+            setPresetFeedback('info', '已从分享链接载入当前配置');
+            loaded = true;
         }
     }
 
+    if (!loaded) {
+        loaded = restoreLastConfig();
+    }
+
+    if (!loaded) {
+        loadFirstVisitPreset();
+    }
+
     elements.titleInput.value = state.config.title;
+    renderQuickStart();
     renderOptionsList();
     renderThemeSelector();
     renderPresetSelector();
@@ -102,9 +116,68 @@ function init() {
     console.log('Wheel generator initialized');
 }
 
+/**
+ * Restore the working config saved at the end of the previous session.
+ * Rebinds to its source preset when that preset still exists.
+ * @returns {boolean} Whether a saved config was restored.
+ */
+function restoreLastConfig() {
+    const saved = presetManager.loadLastConfig();
+    if (!saved || !saved.config) return false;
+
+    state.config = createEditableConfig(saved.config);
+
+    const preset = saved.presetId ? presetManager.getPresetById(saved.presetId) : null;
+    if (preset) {
+        state.currentPresetId = preset.id;
+        state.baselinePresetConfig = normalizeConfigForCompare(preset.config);
+        syncPresetDirtyState();
+        setPresetFeedback('info', '已恢复上次的转盘');
+    } else {
+        state.currentPresetId = null;
+        state.baselinePresetConfig = null;
+        state.isPresetDirty = false;
+        setPresetFeedback('info', '已恢复上次未保存的草稿');
+    }
+
+    return true;
+}
+
+/**
+ * On a first visit (no URL config, no saved draft) load a default preset so the
+ * user starts from a filled, adjustable wheel instead of blank placeholders.
+ */
+function loadFirstVisitPreset() {
+    const preset = presetManager.getPresetById(DEFAULT_PRESET_ID)
+        || presetManager.getBuiltinPresets()[0]
+        || null;
+    if (!preset) return; // fall back to the default placeholder config already in state
+
+    state.config = createEditableConfig({
+        ...preset.config,
+        items: preset.config.items.map(item => ({ ...item, id: generateId() }))
+    });
+    state.currentPresetId = preset.id;
+    state.baselinePresetConfig = normalizeConfigForCompare(preset.config);
+    state.isPresetDirty = false;
+    setPresetFeedback('info', '已为你载入示例转盘，直接改成自己的即可');
+    persistWorkingConfig();
+}
+
+/**
+ * Persist the current working config (and its preset binding) for next visit.
+ */
+function persistWorkingConfig() {
+    presetManager.saveLastConfig({
+        config: getConfig(),
+        presetId: state.currentPresetId
+    });
+}
+
 function cacheElements() {
     elements = {
         titleInput: document.getElementById('title-input'),
+        quickStart: document.getElementById('quick-start'),
         themeSelector: document.getElementById('theme-selector'),
         optionsList: document.getElementById('options-list'),
         addOptionBtn: document.getElementById('add-option'),
@@ -151,6 +224,7 @@ function setupEventListeners() {
         }
     });
 
+    elements.quickStart.addEventListener('click', handleQuickStartClick);
     elements.addOptionBtn.addEventListener('click', addOption);
     elements.spinBtn.addEventListener('click', handleSpin);
     elements.mobileSpinBtn.addEventListener('click', handleMobileSpin);
@@ -265,6 +339,7 @@ function handleConfigMutation({ rerenderOptions = false } = {}) {
     updateMobileQuickBar('准备就绪');
     syncPresetDirtyState();
     renderPresetUI();
+    persistWorkingConfig();
 }
 
 function hydrateFormFromState() {
@@ -277,6 +352,7 @@ function bindCurrentConfigToPreset(presetId, feedbackText) {
     state.baselinePresetConfig = normalizeConfigForCompare(preset?.config || state.config);
     state.isPresetDirty = false;
     setPresetFeedback('success', feedbackText);
+    persistWorkingConfig();
 }
 
 function clearPresetBinding(feedbackText = '当前是未绑定草稿') {
@@ -284,6 +360,7 @@ function clearPresetBinding(feedbackText = '当前是未绑定草稿') {
     state.baselinePresetConfig = null;
     state.isPresetDirty = false;
     setPresetFeedback('info', feedbackText);
+    persistWorkingConfig();
 }
 
 function confirmDiscardPresetChanges(actionLabel = '切换') {
@@ -303,6 +380,37 @@ function selectTheme(themeName) {
     });
 
     handleConfigMutation();
+}
+
+function renderQuickStart() {
+    if (!elements.quickStart) return;
+
+    const presets = presetManager.getBuiltinPresets();
+    elements.quickStart.replaceChildren(...presets.map(preset => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'quick-start-chip';
+        chip.dataset.presetId = preset.id;
+        chip.textContent = preset.name;
+
+        const isActive = preset.id === state.currentPresetId;
+        chip.classList.toggle('active', isActive);
+        chip.setAttribute('aria-pressed', String(isActive));
+
+        return chip;
+    }));
+}
+
+function handleQuickStartClick(e) {
+    const chip = e.target.closest('.quick-start-chip');
+    if (!chip) return;
+
+    const presetId = chip.dataset.presetId;
+    if (!presetId || presetId === state.currentPresetId) return;
+
+    if (!confirmDiscardPresetChanges('切换模板')) return;
+
+    loadPreset(presetId);
 }
 
 function renderThemeSelector() {
@@ -502,6 +610,7 @@ export function setConfig(config) {
     updateMobileQuickBar('准备就绪');
     syncPresetDirtyState();
     renderPresetUI();
+    persistWorkingConfig();
 }
 
 function renderPresetSelector() {
@@ -583,6 +692,7 @@ function renderPresetSelector() {
 
 function renderPresetUI() {
     renderPresetSelector();
+    renderQuickStart();
 
     const preset = getCurrentPreset();
     const presetKind = getCurrentPresetKind();
@@ -667,6 +777,7 @@ function loadPreset(presetId) {
     renderThemeSelector();
     updateWheelPreview();
     renderPresetUI();
+    persistWorkingConfig();
 
     console.log(`Loaded preset: ${preset.name}`);
 }

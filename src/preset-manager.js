@@ -9,6 +9,7 @@ export class PresetManager {
         this.userStorageKey = 'zhuanpan-user-presets';
         this.builtinOverrideStorageKey = 'zhuanpan-builtin-preset-overrides';
         this.hiddenBuiltinStorageKey = 'zhuanpan-hidden-builtin-presets';
+        this.lastConfigStorageKey = 'zhuanpan-last-config';
         this.userPresets = this.loadJSON(this.userStorageKey, []);
         this.builtinOverrides = this.loadJSON(this.builtinOverrideStorageKey, {});
         this.hiddenBuiltinIds = this.loadJSON(this.hiddenBuiltinStorageKey, []);
@@ -183,6 +184,31 @@ export class PresetManager {
 
     clearAllUserPresets() {
         this.saveUserPresets([]);
+    }
+
+    /**
+     * Persist the current working config so the next visit can resume it.
+     * Best-effort: autosave must never throw and interrupt editing.
+     * @param {Object} payload - { config, presetId }
+     */
+    saveLastConfig(payload) {
+        try {
+            localStorage.setItem(this.lastConfigStorageKey, JSON.stringify(payload));
+        } catch (error) {
+            console.error('Error saving last config:', error);
+        }
+    }
+
+    loadLastConfig() {
+        return this.loadJSON(this.lastConfigStorageKey, null);
+    }
+
+    clearLastConfig() {
+        try {
+            localStorage.removeItem(this.lastConfigStorageKey);
+        } catch (error) {
+            console.error('Error clearing last config:', error);
+        }
     }
 
     getStorageInfo() {

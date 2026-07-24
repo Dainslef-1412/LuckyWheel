@@ -70,41 +70,6 @@ export const BUILTIN_PRESETS = [
                 { id: 'yesno-2', label: '否', weight: 1 }
             ]
         }
-    },
-    {
-        id: 'lunch',
-        name: '🍱 午餐选择',
-        description: '工作日午餐决定',
-        category: '生活',
-        config: {
-            title: '午餐选择',
-            theme: 'forest',
-            items: [
-                { id: 'lunch-1', label: '便当', weight: 2 },
-                { id: 'lunch-2', label: '面馆', weight: 2 },
-                { id: 'lunch-3', label: '快餐', weight: 1 },
-                { id: 'lunch-4', label: '便利店', weight: 1 },
-                { id: 'lunch-5', label: '轻食沙拉', weight: 1 }
-            ]
-        }
-    },
-    {
-        id: 'movie',
-        name: '🎬 电影类型',
-        description: '选择今晚看什么电影',
-        category: '娱乐',
-        config: {
-            title: '电影类型',
-            theme: 'fresh',
-            items: [
-                { id: 'movie-1', label: '动作片', weight: 2 },
-                { id: 'movie-2', label: '喜剧片', weight: 2 },
-                { id: 'movie-3', label: '科幻片', weight: 1 },
-                { id: 'movie-4', label: '爱情片', weight: 1 },
-                { id: 'movie-5', label: '悬疑片', weight: 1 },
-                { id: 'movie-6', label: '动画片', weight: 1 }
-            ]
-        }
     }
 ];
 
