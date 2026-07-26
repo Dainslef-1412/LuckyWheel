@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>转盘生成器</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%23d2683d'/%3E%3Cpath d='M32 4v56M4 32h56M12.2 12.2l39.6 39.6M51.8 12.2 12.2 51.8' stroke='white' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='7' fill='white'/%3E%3C/svg%3E">
     <style>
         :root {
             --bg: #f6ead8;
@@ -144,11 +145,26 @@
             font-weight: 600;
         }
 
+        .runtime-warning {
+            margin: 18px 0;
+            padding: 14px 16px;
+            border: 1px solid rgba(179, 75, 36, 0.28);
+            border-radius: var(--radius-sm);
+            background: #fff0df;
+            color: var(--accent-strong);
+            font-weight: 700;
+            line-height: 1.6;
+        }
+
+        .runtime-warning.hidden {
+            display: none;
+        }
+
         .editor-container {
             display: grid;
             grid-template-columns: minmax(320px, 1fr) minmax(360px, 1.08fr);
             gap: 24px;
-            align-items: stretch;
+            align-items: start;
         }
 
         .config-panel {
@@ -271,10 +287,45 @@
         .preset-actions .btn {
             font-size: 0.9rem;
             padding: 12px 14px;
+            min-height: 64px;
+            text-align: left;
         }
 
         .preset-actions .btn-wide {
             grid-column: 1 / -1;
+        }
+
+        .btn-main,
+        .btn-caption {
+            display: block;
+        }
+
+        .btn-main {
+            line-height: 1.25;
+        }
+
+        .btn-caption {
+            margin-top: 4px;
+            font-size: 0.76rem;
+            line-height: 1.35;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .btn-primary .btn-caption {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .btn-danger-subtle {
+            background: rgba(255, 255, 255, 0.9);
+            color: #9b3d2d;
+            border: 1px solid rgba(217, 92, 72, 0.26);
+        }
+
+        .btn-danger-subtle:hover:not(:disabled) {
+            background: #fff5f2;
+            transform: translateY(-1px);
+            box-shadow: 0 10px 18px rgba(139, 55, 38, 0.08);
         }
 
         .btn:disabled {
@@ -321,21 +372,45 @@
         }
 
         .option-item {
-            display: flex;
+            display: grid;
+            grid-template-columns: 42px minmax(0, 1fr) 96px 76px;
             gap: 10px;
             align-items: center;
-            padding: 10px;
+            padding: 12px;
             border-radius: 20px;
             background: rgba(255, 255, 255, 0.52);
             border: 1px solid rgba(103, 70, 38, 0.08);
         }
 
-        .option-item input[type="text"] {
-            flex: 1;
+        .option-index {
+            display: grid;
+            place-items: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 12px;
+            background: rgba(103, 70, 38, 0.08);
+            color: var(--muted);
+            font-size: 0.82rem;
+            font-weight: 800;
         }
 
-        .option-item input[type="number"] {
-            width: 96px;
+        .option-item .option-field {
+            display: grid;
+            gap: 6px;
+            margin: 0;
+            font-size: 0.76rem;
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        .option-field input[type="text"],
+        .option-field input[type="number"] {
+            width: 100%;
+        }
+
+        .option-delete {
+            align-self: end;
+            min-height: 48px;
         }
 
         .btn {
@@ -389,7 +464,8 @@
             text-align: center;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            justify-content: flex-start;
+            gap: 18px;
             position: relative;
             overflow: hidden;
         }
@@ -403,8 +479,8 @@
             position: relative;
             display: grid;
             place-items: center;
-            min-height: 460px;
-            padding: 20px;
+            min-height: 420px;
+            padding: 18px 20px 14px;
             border-radius: 28px;
             background:
                 radial-gradient(circle at center, rgba(255, 255, 255, 0.94), rgba(255, 248, 239, 0.65) 58%, rgba(243, 196, 139, 0.35) 100%);
@@ -446,10 +522,10 @@
         }
 
         .wheel-actions {
-            margin-top: 22px;
+            margin-top: 0;
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 10px;
             align-items: center;
         }
 
@@ -480,11 +556,11 @@
 
         .result-display {
             width: min(100%, 420px);
-            min-height: 74px;
-            padding: 16px 20px;
+            min-height: 58px;
+            padding: 12px 18px;
             background: rgba(255, 255, 255, 0.92);
             color: var(--text);
-            border-radius: 22px;
+            border-radius: 18px;
             border: 1px solid rgba(103, 70, 38, 0.1);
             font-size: 1.14rem;
             font-weight: 700;
@@ -611,7 +687,12 @@
 
             .option-item {
                 display: grid;
-                grid-template-columns: 1fr 92px auto;
+                grid-template-columns: 34px minmax(0, 1fr);
+            }
+
+            .option-field.weight-field,
+            .option-delete {
+                grid-column: 2;
             }
 
             .preview-stage {
@@ -644,10 +725,14 @@
             </div>
         </header>
 
+        <div class="runtime-warning" id="runtime-warning">
+            当前页面还没有完成应用初始化。请用本地服务打开，例如运行 npm run dev 后访问提示的 localhost 地址；直接用 file:// 打开会被浏览器阻止加载模块脚本。
+        </div>
+
         <div class="editor-container">
             <div class="config-panel">
                 <h2>配置面板</h2>
-                <p class="section-lead">所有改动都会实时同步到右侧转盘。保存成预设后，下次打开还可以继续沿用。</p>
+                <p class="section-lead">先从一个模板开始，改动会实时同步到右侧转盘。保存副本后，下次打开还可以继续沿用。</p>
 
                 <div class="form-group">
                     <label for="title-input">标题</label>
@@ -659,7 +744,7 @@
                     <div class="preset-container">
                         <div class="preset-toolbar">
                             <select id="preset-selector" class="preset-select">
-                                <option value="">选择一个预设...</option>
+                                <option value="">从空白转盘开始</option>
                                 <optgroup label="生活场景">
                                     <option value="dinner">🍜 今晚吃什么</option>
                                     <option value="lunch">🍱 午餐选择</option>
@@ -680,24 +765,29 @@
                             </select>
                             <div class="preset-status">
                                 <div class="preset-current" id="preset-current">当前：未绑定预设</div>
-                                <div class="preset-status-badge info" id="preset-status">当前是未绑定草稿</div>
+                                <div class="preset-status-badge info" id="preset-status">已载入默认模板</div>
                             </div>
                         </div>
                         <div class="preset-actions">
-                            <button type="button" class="btn btn-primary btn-wide" id="preset-save-btn">
-                                💾 保存为预设
+                            <button type="button" class="btn btn-primary" id="duplicate-preset-btn">
+                                <span class="btn-main">新增：保存副本</span>
+                                <span class="btn-caption">把当前转盘存到“我的预设”</span>
                             </button>
-                            <button type="button" class="btn btn-secondary" id="duplicate-preset-btn">
-                                ＋ 另存为新预设
+                            <button type="button" class="btn btn-secondary" id="preset-save-btn">
+                                <span class="btn-main">修改：保存当前</span>
+                                <span class="btn-caption">仅用于已保存的我的预设</span>
                             </button>
                             <button type="button" class="btn btn-secondary" id="rename-preset-btn">
-                                ✏️ 重命名
+                                <span class="btn-main">重命名</span>
+                                <span class="btn-caption">修改我的预设名称</span>
                             </button>
-                            <button type="button" class="btn btn-secondary" id="delete-preset-btn">
-                                🗑️ 删除
+                            <button type="button" class="btn btn-danger-subtle" id="delete-preset-btn">
+                                <span class="btn-main">删除</span>
+                                <span class="btn-caption">只删除我的预设</span>
                             </button>
-                            <button type="button" class="btn btn-secondary" id="share-url-btn">
-                                🔗 分享链接
+                            <button type="button" class="btn btn-secondary btn-wide" id="share-url-btn">
+                                <span class="btn-main">分享链接</span>
+                                <span class="btn-caption">复制当前转盘配置，不保存到本机</span>
                             </button>
                         </div>
                     </div>
@@ -715,12 +805,12 @@
                 </div>
 
                 <div class="form-group">
-                    <label>选项</label>
+                    <label>选项明细</label>
                     <div class="options-list" id="options-list">
                         <!-- Options will be rendered here -->
                     </div>
                     <button type="button" class="btn btn-secondary" id="add-option">
-                        + 添加选项
+                        + 新增选项
                     </button>
                 </div>
             </div>
@@ -773,6 +863,6 @@
         </div>
     </div>
 
-    <script type="module" src="/src/main.js"></script>
+    <script type="module" src="./src/main.js"></script>
 </body>
 </html>

@@ -9,6 +9,7 @@ import { PresetManager } from './preset-manager.js';
 import { decodeConfigFromURL, generateShareURL, hasConfigInURL } from './url-handler.js';
 
 const presetManager = new PresetManager();
+const DEFAULT_PRESET_ID = 'dinner';
 
 function createDefaultConfig() {
     return {
@@ -56,6 +57,23 @@ function areConfigsEqual(left, right) {
     return JSON.stringify(normalizeConfigForCompare(left)) === JSON.stringify(normalizeConfigForCompare(right));
 }
 
+function escapeHTML(value) {
+    return String(value).replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    })[char]);
+}
+
+function setActionButton(button, title, caption) {
+    button.innerHTML = `
+        <span class="btn-main">${escapeHTML(title)}</span>
+        <span class="btn-caption">${escapeHTML(caption)}</span>
+    `;
+}
+
 const state = {
     config: createDefaultConfig(),
     isSpinning: false,
@@ -84,6 +102,8 @@ function init() {
                 text: '已从分享链接载入当前配置'
             };
         }
+    } else {
+        loadInitialPreset(DEFAULT_PRESET_ID);
     }
 
     elements.titleInput.value = state.config.title;
@@ -125,7 +145,24 @@ function cacheElements() {
         presetNameInput: document.getElementById('preset-name-input'),
         presetNameConfirmBtn: document.getElementById('preset-name-confirm-btn'),
         presetNameCancelBtn: document.getElementById('preset-name-cancel-btn'),
-        presetNameClose: document.getElementById('preset-name-close')
+        presetNameClose: document.getElementById('preset-name-close'),
+        runtimeWarning: document.getElementById('runtime-warning')
+    };
+
+    elements.runtimeWarning?.classList.add('hidden');
+}
+
+function loadInitialPreset(presetId) {
+    const preset = presetManager.getPresetById(presetId);
+    if (!preset) return;
+
+    state.config = createEditableConfig(preset.config);
+    state.currentPresetId = preset.id;
+    state.baselinePresetConfig = normalizeConfigForCompare(preset.config);
+    state.isPresetDirty = false;
+    state.presetFeedback = {
+        type: 'info',
+        text: '已载入默认模板，可直接修改后保存副本'
     };
 }
 
@@ -157,7 +194,7 @@ function setupEventListeners() {
     elements.presetNameCancelBtn.addEventListener('click', () => closePresetNameModal(null));
     elements.presetNameClose.addEventListener('click', () => closePresetNameModal(null));
     elements.presetNameInput.addEventListener('keydown', handlePresetNameModalKeydown);
-    elements.optionsList.addEventListener('input', debounce(handleOptionInput, 300));
+    elements.optionsList.addEventListener('input', handleOptionInput);
     elements.optionsList.addEventListener('click', handleOptionClick);
 }
 
@@ -229,7 +266,7 @@ function getCurrentPresetKind() {
 }
 
 function getPresetSourceLabel(preset) {
-    return isUserPresetId(preset.id) ? '我的预设' : '默认预设';
+    return isUserPresetId(preset.id) ? '我的预设' : '默认模板';
 }
 
 function setPresetFeedback(type, text) {
@@ -308,29 +345,41 @@ function renderThemeSelector() {
 }
 
 function renderOptionsList() {
+    const canRemove = state.config.items.length > 2;
+
     elements.optionsList.innerHTML = state.config.items.map((item, index) => `
         <div class="option-item" data-id="${item.id}">
-            <input
-                type="text"
-                value="${item.label}"
-                placeholder="选项 ${index + 1}"
-                data-field="label"
-                data-id="${item.id}"
-            >
-            <input
-                type="number"
-                value="${item.weight}"
-                min="1"
-                placeholder="权重"
-                data-field="weight"
-                data-id="${item.id}"
-            >
+            <div class="option-index">#${index + 1}</div>
+            <label class="option-field">
+                名称
+                <input
+                    type="text"
+                    value="${escapeHTML(item.label)}"
+                    placeholder="选项 ${index + 1}"
+                    data-field="label"
+                    data-id="${item.id}"
+                >
+            </label>
+            <label class="option-field weight-field">
+                权重
+                <input
+                    type="number"
+                    value="${escapeHTML(item.weight)}"
+                    min="1"
+                    placeholder="权重"
+                    data-field="weight"
+                    data-id="${item.id}"
+                >
+            </label>
             <button
                 type="button"
-                class="btn btn-danger"
+                class="btn btn-danger option-delete"
                 data-action="remove"
                 data-id="${item.id}"
-            >×</button>
+                aria-label="删除 ${escapeHTML(item.label)}"
+                title="${canRemove ? '删除这个选项' : '至少保留 2 个选项'}"
+                ${canRemove ? '' : 'disabled'}
+            >删除</button>
         </div>
     `).join('');
 }
@@ -469,7 +518,7 @@ function renderPresetSelector() {
         categoryGroups[preset.category].push(preset);
     });
 
-    elements.presetSelector.innerHTML = '<option value="">选择一个预设...</option>';
+    elements.presetSelector.innerHTML = '<option value="">从空白转盘开始</option>';
 
     if (categoryGroups['生活']) {
         const group = document.createElement('optgroup');
@@ -541,22 +590,22 @@ function renderPresetUI() {
     const presetKind = getCurrentPresetKind();
     const presetLabel = preset
         ? `${preset.name} · ${getPresetSourceLabel(preset)}`
-        : '未绑定预设';
+        : '空白转盘';
 
     let statusType = state.presetFeedback.type || 'info';
     let statusText = state.presetFeedback.text || '当前是未绑定草稿';
 
     if (state.isPresetDirty) {
         statusType = 'dirty';
-        statusText = '已修改，未保存';
+        statusText = presetKind === 'builtin' ? '已修改模板，保存副本后可长期保留' : '已修改，未保存';
     } else if (!preset && !statusText) {
         statusText = '当前是未绑定草稿';
     } else if (!preset && statusType !== 'success') {
         statusType = 'info';
-        statusText = '当前是未绑定草稿';
+        statusText = statusText || '当前是未绑定草稿';
     } else if (presetKind === 'builtin' && statusType !== 'success') {
         statusType = 'info';
-        statusText = '默认预设可直接修改，也可以删除';
+        statusText = '默认模板可直接试用，修改后建议保存副本';
     } else if (presetKind === 'user' && statusType !== 'success') {
         statusType = 'info';
         statusText = '已保存，可继续编辑或另存为新预设';
@@ -566,17 +615,22 @@ function renderPresetUI() {
     elements.presetStatus.textContent = statusText;
     elements.presetStatus.className = `preset-status-badge ${statusType}`;
 
-    if (presetKind === 'user' || presetKind === 'builtin') {
-        elements.presetSaveBtn.textContent = '💾 保存修改';
+    setActionButton(elements.duplicatePresetBtn, '新增：保存副本', '把当前转盘存到“我的预设”');
+
+    if (presetKind === 'user') {
+        setActionButton(elements.presetSaveBtn, '修改：保存当前', '更新正在编辑的我的预设');
         elements.presetSaveBtn.disabled = !state.isPresetDirty;
+    } else if (presetKind === 'builtin') {
+        setActionButton(elements.presetSaveBtn, '修改：模板不可覆盖', '请用“新增：保存副本”保存');
+        elements.presetSaveBtn.disabled = true;
     } else {
-        elements.presetSaveBtn.textContent = '💾 保存为预设';
-        elements.presetSaveBtn.disabled = false;
+        setActionButton(elements.presetSaveBtn, '修改：暂无预设', '请先保存副本再修改');
+        elements.presetSaveBtn.disabled = true;
     }
 
     elements.duplicatePresetBtn.disabled = false;
-    elements.renamePresetBtn.disabled = presetKind === 'none';
-    elements.deletePresetBtn.disabled = presetKind === 'none';
+    elements.renamePresetBtn.disabled = presetKind !== 'user';
+    elements.deletePresetBtn.disabled = presetKind !== 'user';
 }
 
 function handlePresetSelection(e) {
@@ -594,7 +648,12 @@ function handlePresetSelection(e) {
         return;
     }
 
-    clearPresetBinding('当前配置已变成未绑定草稿');
+    state.config = createDefaultConfig();
+    hydrateFormFromState();
+    renderOptionsList();
+    renderThemeSelector();
+    updateWheelPreview();
+    clearPresetBinding('已切换为空白转盘');
     renderPresetUI();
 }
 
@@ -647,6 +706,10 @@ function handlePresetSave() {
     const presetKind = getCurrentPresetKind();
 
     if (presetKind === 'user' || presetKind === 'builtin') {
+        if (presetKind === 'builtin') {
+            saveAsNewPreset();
+            return;
+        }
         if (!state.isPresetDirty) return;
         saveCurrentPresetChanges();
         return;
