@@ -23,12 +23,13 @@ export function encodeConfigToURL(config) {
 }
 
 /**
- * Decode configuration from URL parameter
- * @returns {Object|null} Decoded configuration or null if not found
+ * Decode configuration from a query string
+ * @param {string} search - Query string, with or without the leading `?`
+ * @returns {Object|null} Decoded configuration, or null if absent or malformed
  */
-export function decodeConfigFromURL() {
+export function decodeConfigFromSearch(search) {
     try {
-        const params = new URLSearchParams(window.location.search);
+        const params = new URLSearchParams(search);
         const configParam = params.get('config');
 
         if (!configParam) {
@@ -44,6 +45,14 @@ export function decodeConfigFromURL() {
         console.error('Error decoding config from URL:', error);
         return null;
     }
+}
+
+/**
+ * Decode configuration from the current page URL
+ * @returns {Object|null} Decoded configuration or null if not found
+ */
+export function decodeConfigFromURL() {
+    return decodeConfigFromSearch(window.location.search);
 }
 
 /**
@@ -66,13 +75,3 @@ export function hasConfigInURL() {
     return params.has('config');
 }
 
-/**
- * Clear configuration from URL (update URL without reloading)
- */
-export function clearConfigFromURL() {
-    const url = new URL(window.location);
-    url.searchParams.delete('config');
-
-    // Update URL without reloading page
-    window.history.replaceState({}, '', url.toString());
-}

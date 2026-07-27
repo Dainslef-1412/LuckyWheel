@@ -10,7 +10,6 @@ This file is the technical source of truth for `luckyWheel`.
 index.html
 └── src/main.js
     ├── src/wheel.js
-    ├── src/spin.js
     ├── src/themes.js
     ├── src/preset-manager.js
     ├── src/presets.js
@@ -22,20 +21,24 @@ index.html
 
 | Module | Responsibility |
 | --- | --- |
-| `src/main.js` | UI state, DOM wiring, editor interactions, preset actions, share modal. |
-| `src/wheel.js` | SVG sector geometry, labels, center circle, pointer, wheel rendering. |
-| `src/spin.js` | Weighted winner selection, target rotation, spin animation, result display. |
-| `src/themes.js` | Theme definitions, color assignment, CSS variable application. |
+| `src/main.js` | UI state, DOM wiring, editor interactions, preset actions, share modal, spin sequencing. |
+| `src/wheel.js` | SVG sector geometry, spin target rotation, labels, center circle and its text, pointer, wheel rendering. |
+| `src/themes.js` | Theme definitions and per-item color assignment. |
 | `src/preset-manager.js` | Built-in/user preset persistence through `localStorage`. |
 | `src/presets.js` | Built-in wheel presets. |
 | `src/url-handler.js` | Encode/decode shareable URL configuration. |
-| `src/utils.js` | Shared math, ids, debounce, text, and random helpers. |
+| `src/utils.js` | Shared math, angle normalization, ids, debounce, text, and random helpers. |
 
 ## Key Decisions
 
 - Use Vanilla JavaScript to keep the app small and deployable as static assets.
 - Use SVG for precise wheel sectors and labels.
 - Use CSS transitions for spin deceleration.
+- Keep spin sequencing in `src/main.js`; it owns `state.currentRotation`. The rotation
+  math itself lives in `calculateSpinRotation` so it stays pure and unit-testable. A
+  separate spin module previously duplicated this logic against its own state and was removed.
+- Address the center circle text through its `center-text` id. Sector labels share the
+  same `dominant-baseline` attribute, so attribute selectors match a sector first.
 - Use `localStorage` for user presets.
 - Use URL-encoded config for sharing.
 - Keep Vite as the only build dependency.
@@ -46,11 +49,13 @@ Standard commands:
 
 ```bash
 npm run dev
+npm test
 npm run build
 npm run preview
 ```
 
-Build output goes to `dist/`. Deployment guidance lives in [docs/tech/deployment.md](./docs/tech/deployment.md). Generated deploy packages belong under `outputs/` and should not be treated as source.
+Unit tests use the Node built-in test runner (`node --test`), which keeps Vite the only
+dependency. Build output goes to `dist/`. Deployment guidance lives in [docs/tech/deployment.md](./docs/tech/deployment.md). Generated deploy packages belong under `outputs/` and should not be treated as source.
 
 ## Constraints
 

@@ -8,6 +8,7 @@ Prefer existing npm commands before adding new tooling:
 
 ```bash
 npm run dev
+npm test
 npm run build
 npm run preview
 ```

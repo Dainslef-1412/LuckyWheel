@@ -4,12 +4,14 @@
 
 import { generateId, debounce, weightedRandom } from './utils.js';
 import { assignColors, getThemeNames } from './themes.js';
-import { renderWheel, calculateSectorAngles } from './wheel.js';
+import { renderWheel, calculateSectorAngles, setCenterText, calculateSpinRotation } from './wheel.js';
 import { PresetManager } from './preset-manager.js';
 import { decodeConfigFromURL, generateShareURL, hasConfigInURL } from './url-handler.js';
 
 const presetManager = new PresetManager();
 const DEFAULT_PRESET_ID = 'dinner';
+const SPIN_ROTATIONS = 5;
+const SPIN_DURATION_MS = 4000;
 
 function createDefaultConfig() {
     return {
@@ -465,45 +467,31 @@ function handleSpin() {
     const angles = calculateSectorAngles(state.config.items);
     const winnerIndex = state.config.items.findIndex(item => item.id === winner.id);
     const winnerAngle = angles[winnerIndex].center;
-    const finalRotation = state.currentRotation + (360 * 5) + (360 - winnerAngle);
+
+    const finalRotation = calculateSpinRotation(state.currentRotation, winnerAngle, SPIN_ROTATIONS);
 
     const wheelGroup = elements.previewWheel.querySelector('#wheel-container');
     if (wheelGroup) {
         wheelGroup.style.transformOrigin = '250px 250px';
-        wheelGroup.style.transition = 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
+        wheelGroup.style.transition = `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.17, 0.67, 0.12, 0.99)`;
         wheelGroup.style.transform = `rotate(${finalRotation}deg)`;
     }
 
-    const centerText = elements.previewWheel.querySelector('text[dominant-baseline="middle"]');
-    if (centerText) {
-        centerText.textContent = '旋转中...';
-    }
+    setCenterText(elements.previewWheel, '旋转中...');
 
     setTimeout(() => {
         state.isSpinning = false;
         state.currentRotation = finalRotation;
         elements.spinBtn.disabled = false;
 
-        if (centerText) {
-            centerText.textContent = winner.label;
-        }
+        setCenterText(elements.previewWheel, winner.label);
 
-        elements.resultDisplay.innerHTML = `🎉 恭喜！结果是：<strong>${winner.label}</strong>`;
-    }, 4000);
+        elements.resultDisplay.innerHTML = `🎉 恭喜！结果是：<strong>${escapeHTML(winner.label)}</strong>`;
+    }, SPIN_DURATION_MS);
 }
 
-export function getConfig() {
+function getConfig() {
     return cloneConfig(state.config);
-}
-
-export function setConfig(config) {
-    state.config = createEditableConfig(config);
-    hydrateFormFromState();
-    renderOptionsList();
-    renderThemeSelector();
-    updateWheelPreview();
-    syncPresetDirtyState();
-    renderPresetUI();
 }
 
 function renderPresetSelector() {

@@ -7,6 +7,7 @@ This file documents the project folder contract for `luckyWheel`.
 ```text
 .
 ├── src/                         # Browser application modules
+├── tests/                       # Node built-in test runner unit tests
 ├── docs/
 │   ├── delivery/                # Iteration and delivery planning
 │   ├── tech/                    # Deployment and technical runbooks
@@ -29,6 +30,7 @@ This file documents the project folder contract for `luckyWheel`.
 | Standard role | `luckyWheel` path | Notes |
 | --- | --- | --- |
 | Source code | `src/`, `index.html` | Static browser app. |
+| Unit tests | `tests/` | `*.test.js`, run with `npm test`. |
 | Runtime config | `vite.config.js`, `package.json` | Build and script behavior. |
 | Product spec | `SPEC.md` | Promoted from the original `prd.md`. |
 | Data design | `DATA_DESIGN.md` | Config object, URL state, and localStorage rules. |

@@ -17,6 +17,7 @@
 ```text
 .
 ├── src/                  # 浏览器应用代码
+├── tests/                # 单元测试（Node 内置 test runner）
 ├── docs/                 # 详细工程、部署和交付文档
 ├── outputs/              # 生成的部署包和可再生成产物
 ├── SPEC.md
@@ -46,6 +47,7 @@
 ```bash
 npm install
 npm run dev
+npm test
 npm run build
 npm run preview
 ```
@@ -62,6 +64,7 @@ npm run preview
 
 ## 下一步
 
-- 为权重随机、扇区角度、URL 编解码和预设持久化补单元测试。
+- 为预设持久化补单元测试（需要 `localStorage` 替身）。
+- 为选项编辑、预设操作和中心文字补 DOM 测试。
 - 补桌面和移动端的手工视觉回归清单。
 - 在改变配置结构前确认分享链接兼容策略。

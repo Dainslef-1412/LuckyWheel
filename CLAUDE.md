@@ -58,9 +58,8 @@ npm run preview      # Preview production build
 zhuanpan/
 ├── index.html           # Main editor page
 ├── src/
-│   ├── main.js          # Entry point
-│   ├── wheel.js         # Wheel rendering (SVG generation)
-│   ├── spin.js          # Spin animation & physics
+│   ├── main.js          # Entry point, spin sequencing
+│   ├── wheel.js         # Wheel rendering (SVG generation, center text)
 │   ├── themes.js        # Theme presets (colors, fonts)
 │   ├── preset-manager.js # User preset persistence
 │   ├── presets.js       # Built-in presets
@@ -89,7 +88,11 @@ zhuanpan/
 ### 3. Spin Physics
 
 ```javascript
-// Total rotation = (360 × spins) + (360 - target_sector_center_angle)
+// The wheel keeps the offset left by earlier spins:
+//   offset    = currentRotation mod 360
+//   align     = ((360 - target_sector_center_angle) - offset) mod 360   // non-negative
+//   rotation  = currentRotation + (360 × spins) + align
+// Dropping `offset` makes every spin after the first stop on the wrong sector.
 // Use CSS cubic-bezier or JS frame animation for deceleration
 ```
 
