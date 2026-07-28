@@ -153,6 +153,7 @@ export function createCenterCircle(config, options = {}) {
     text.setAttribute('id', CENTER_TEXT_ID);
     text.setAttribute('x', centerX);
     text.setAttribute('y', centerY);
+    text.setAttribute('data-role', 'center-text');
     text.setAttribute('text-anchor', 'middle');
     text.setAttribute('dominant-baseline', 'middle');
     text.setAttribute('fill', '#333');

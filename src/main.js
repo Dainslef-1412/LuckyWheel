@@ -2,16 +2,14 @@
  * Main application entry point
  */
 
-import { generateId, debounce, weightedRandom } from './utils.js';
+import { generateId, debounce } from './utils.js';
 import { assignColors, getThemeNames } from './themes.js';
-import { renderWheel, calculateSectorAngles, setCenterText, calculateSpinRotation } from './wheel.js';
+import { renderWheel } from './wheel.js';
+import { spinWheel, resetRotation, updateCenterText } from './spin.js';
 import { PresetManager } from './preset-manager.js';
-import { decodeConfigFromURL, generateShareURL, hasConfigInURL } from './url-handler.js';
+import { decodeConfigFromURL, generateShareURL, hasConfigInURL, normalizeSharedConfig } from './url-handler.js';
 
 const presetManager = new PresetManager();
-const DEFAULT_PRESET_ID = 'dinner';
-const SPIN_ROTATIONS = 5;
-const SPIN_DURATION_MS = 4000;
 
 function createDefaultConfig() {
     return {
@@ -27,15 +25,18 @@ function createDefaultConfig() {
 
 function createEditableConfig(config = {}) {
     const fallback = createDefaultConfig();
-    const items = Array.isArray(config.items) && config.items.length > 0 ? config.items : fallback.items;
+    const normalizedConfig = normalizeSharedConfig(config) || fallback;
+    const originalItems = Array.isArray(config.items) ? config.items : [];
 
     return {
-        title: config.title || fallback.title,
-        theme: config.theme || fallback.theme,
-        items: items.map((item, index) => ({
-            id: item.id || generateId(),
-            label: item.label || `选项${index + 1}`,
-            weight: Math.max(1, parseInt(item.weight, 10) || 1)
+        title: normalizedConfig.title,
+        theme: normalizedConfig.theme,
+        items: normalizedConfig.items.map((item, index) => ({
+            id: typeof originalItems[index]?.id === 'string' && originalItems[index].id
+                ? originalItems[index].id.slice(0, 80)
+                : generateId(),
+            label: item.label,
+            weight: item.weight
         }))
     };
 }
@@ -59,27 +60,9 @@ function areConfigsEqual(left, right) {
     return JSON.stringify(normalizeConfigForCompare(left)) === JSON.stringify(normalizeConfigForCompare(right));
 }
 
-function escapeHTML(value) {
-    return String(value).replace(/[&<>"']/g, char => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;'
-    })[char]);
-}
-
-function setActionButton(button, title, caption) {
-    button.innerHTML = `
-        <span class="btn-main">${escapeHTML(title)}</span>
-        <span class="btn-caption">${escapeHTML(caption)}</span>
-    `;
-}
-
 const state = {
     config: createDefaultConfig(),
     isSpinning: false,
-    currentRotation: 0,
     currentPresetId: null,
     isPresetDirty: false,
     baselinePresetConfig: null,
@@ -91,6 +74,7 @@ const state = {
 
 let elements = {};
 let presetNameModalResolver = null;
+let lastFocusedElement = null;
 
 function init() {
     cacheElements();
@@ -104,8 +88,6 @@ function init() {
                 text: '已从分享链接载入当前配置'
             };
         }
-    } else {
-        loadInitialPreset(DEFAULT_PRESET_ID);
     }
 
     elements.titleInput.value = state.config.title;
@@ -114,6 +96,7 @@ function init() {
     renderPresetSelector();
     renderPresetUI();
     updateWheelPreview();
+    updateMobileQuickBar('准备就绪');
     setupEventListeners();
 
     console.log('Wheel generator initialized');
@@ -126,7 +109,11 @@ function cacheElements() {
         optionsList: document.getElementById('options-list'),
         addOptionBtn: document.getElementById('add-option'),
         previewWheel: document.getElementById('preview-wheel'),
+        previewPanel: document.querySelector('.preview-panel'),
         spinBtn: document.getElementById('spin-btn'),
+        mobileSpinBtn: document.getElementById('mobile-spin-btn'),
+        mobileOptionCount: document.getElementById('mobile-option-count'),
+        mobileResult: document.getElementById('mobile-result'),
         resultDisplay: document.getElementById('result-display'),
         presetSelector: document.getElementById('preset-selector'),
         presetCurrent: document.getElementById('preset-current'),
@@ -147,24 +134,7 @@ function cacheElements() {
         presetNameInput: document.getElementById('preset-name-input'),
         presetNameConfirmBtn: document.getElementById('preset-name-confirm-btn'),
         presetNameCancelBtn: document.getElementById('preset-name-cancel-btn'),
-        presetNameClose: document.getElementById('preset-name-close'),
-        runtimeWarning: document.getElementById('runtime-warning')
-    };
-
-    elements.runtimeWarning?.classList.add('hidden');
-}
-
-function loadInitialPreset(presetId) {
-    const preset = presetManager.getPresetById(presetId);
-    if (!preset) return;
-
-    state.config = createEditableConfig(preset.config);
-    state.currentPresetId = preset.id;
-    state.baselinePresetConfig = normalizeConfigForCompare(preset.config);
-    state.isPresetDirty = false;
-    state.presetFeedback = {
-        type: 'info',
-        text: '已载入默认模板，可直接修改后保存副本'
+        presetNameClose: document.getElementById('preset-name-close')
     };
 }
 
@@ -183,6 +153,7 @@ function setupEventListeners() {
 
     elements.addOptionBtn.addEventListener('click', addOption);
     elements.spinBtn.addEventListener('click', handleSpin);
+    elements.mobileSpinBtn.addEventListener('click', handleMobileSpin);
     elements.presetSelector.addEventListener('change', handlePresetSelection);
     elements.presetSaveBtn.addEventListener('click', handlePresetSave);
     elements.duplicatePresetBtn.addEventListener('click', saveAsNewPreset);
@@ -198,6 +169,7 @@ function setupEventListeners() {
     elements.presetNameInput.addEventListener('keydown', handlePresetNameModalKeydown);
     elements.optionsList.addEventListener('input', handleOptionInput);
     elements.optionsList.addEventListener('click', handleOptionClick);
+    document.addEventListener('keydown', handleModalKeydown);
 }
 
 function handlePresetNameModalKeydown(e) {
@@ -227,7 +199,7 @@ function openPresetNameModal({
     elements.presetNameCopy.textContent = description;
     elements.presetNameInput.value = value;
     elements.presetNameConfirmBtn.textContent = confirmText;
-    elements.presetNameModal.classList.add('active');
+    openModal(elements.presetNameModal, elements.presetNameInput);
 
     requestAnimationFrame(() => {
         elements.presetNameInput.focus();
@@ -240,7 +212,7 @@ function openPresetNameModal({
 }
 
 function closePresetNameModal(value) {
-    elements.presetNameModal.classList.remove('active');
+    closeModal(elements.presetNameModal);
 
     if (presetNameModalResolver) {
         const resolve = presetNameModalResolver;
@@ -268,7 +240,7 @@ function getCurrentPresetKind() {
 }
 
 function getPresetSourceLabel(preset) {
-    return isUserPresetId(preset.id) ? '我的预设' : '默认模板';
+    return isUserPresetId(preset.id) ? '我的预设' : '默认预设';
 }
 
 function setPresetFeedback(type, text) {
@@ -290,6 +262,7 @@ function handleConfigMutation({ rerenderOptions = false } = {}) {
     }
 
     updateWheelPreview();
+    updateMobileQuickBar('准备就绪');
     syncPresetDirtyState();
     renderPresetUI();
 }
@@ -324,7 +297,9 @@ function selectTheme(themeName) {
 
     const themeOptions = elements.themeSelector.querySelectorAll('.theme-option');
     themeOptions.forEach(option => {
-        option.classList.toggle('active', option.dataset.theme === themeName);
+        const isActive = option.dataset.theme === themeName;
+        option.classList.toggle('active', isActive);
+        option.setAttribute('aria-pressed', String(isActive));
     });
 
     handleConfigMutation();
@@ -342,48 +317,45 @@ function renderThemeSelector() {
             berry: '浆果',
             fresh: '清新'
         };
-        return `<div class="theme-option ${isActive}" data-theme="${theme}">${themeNames[theme]}</div>`;
+        const pressed = theme === state.config.theme ? 'true' : 'false';
+        return `<button type="button" class="theme-option ${isActive}" data-theme="${theme}" aria-pressed="${pressed}">${themeNames[theme]}</button>`;
     }).join('');
 }
 
 function renderOptionsList() {
-    const canRemove = state.config.items.length > 2;
+    elements.optionsList.replaceChildren(...state.config.items.map((item, index) => {
+        const row = document.createElement('div');
+        row.className = 'option-item';
+        row.dataset.id = item.id;
 
-    elements.optionsList.innerHTML = state.config.items.map((item, index) => `
-        <div class="option-item" data-id="${item.id}">
-            <div class="option-index">#${index + 1}</div>
-            <label class="option-field">
-                名称
-                <input
-                    type="text"
-                    value="${escapeHTML(item.label)}"
-                    placeholder="选项 ${index + 1}"
-                    data-field="label"
-                    data-id="${item.id}"
-                >
-            </label>
-            <label class="option-field weight-field">
-                权重
-                <input
-                    type="number"
-                    value="${escapeHTML(item.weight)}"
-                    min="1"
-                    placeholder="权重"
-                    data-field="weight"
-                    data-id="${item.id}"
-                >
-            </label>
-            <button
-                type="button"
-                class="btn btn-danger option-delete"
-                data-action="remove"
-                data-id="${item.id}"
-                aria-label="删除 ${escapeHTML(item.label)}"
-                title="${canRemove ? '删除这个选项' : '至少保留 2 个选项'}"
-                ${canRemove ? '' : 'disabled'}
-            >删除</button>
-        </div>
-    `).join('');
+        const labelInput = document.createElement('input');
+        labelInput.type = 'text';
+        labelInput.value = item.label;
+        labelInput.placeholder = `选项 ${index + 1}`;
+        labelInput.dataset.field = 'label';
+        labelInput.dataset.id = item.id;
+        labelInput.setAttribute('aria-label', `选项 ${index + 1} 名称`);
+
+        const weightInput = document.createElement('input');
+        weightInput.type = 'number';
+        weightInput.value = item.weight;
+        weightInput.min = '1';
+        weightInput.placeholder = '权重';
+        weightInput.dataset.field = 'weight';
+        weightInput.dataset.id = item.id;
+        weightInput.setAttribute('aria-label', `选项 ${index + 1} 权重`);
+
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'btn btn-danger';
+        removeButton.dataset.action = 'remove';
+        removeButton.dataset.id = item.id;
+        removeButton.setAttribute('aria-label', `删除选项 ${index + 1}`);
+        removeButton.textContent = '×';
+
+        row.append(labelInput, weightInput, removeButton);
+        return row;
+    }));
 }
 
 function addOption() {
@@ -448,9 +420,32 @@ function updateWheelPreview() {
         radius: 200,
         showPointer: true
     });
+    resetRotation();
 }
 
-function handleSpin() {
+function updateMobileQuickBar(statusText) {
+    if (!elements.mobileOptionCount || !elements.mobileResult) return;
+
+    elements.mobileOptionCount.textContent = `${state.config.items.length} 个选项`;
+    if (statusText) {
+        elements.mobileResult.textContent = statusText;
+    }
+}
+
+function setSpinControlsDisabled(disabled) {
+    elements.spinBtn.disabled = disabled;
+    elements.mobileSpinBtn.disabled = disabled;
+}
+
+function handleMobileSpin() {
+    elements.previewPanel.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+    });
+    handleSpin();
+}
+
+async function handleSpin() {
     if (state.isSpinning) return;
     if (state.config.items.length < 2) {
         alert('至少需要 2 个选项才能旋转');
@@ -458,40 +453,55 @@ function handleSpin() {
     }
 
     state.isSpinning = true;
-    elements.spinBtn.disabled = true;
+    setSpinControlsDisabled(true);
     elements.resultDisplay.classList.remove('placeholder', 'show');
     elements.resultDisplay.textContent = '🎰 旋转中...';
     elements.resultDisplay.classList.add('show');
+    updateMobileQuickBar('旋转中...');
+    updateCenterText('旋转中...', elements.previewWheel);
 
-    const winner = weightedRandom(state.config.items);
-    const angles = calculateSectorAngles(state.config.items);
-    const winnerIndex = state.config.items.findIndex(item => item.id === winner.id);
-    const winnerAngle = angles[winnerIndex].center;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const spinDuration = prefersReducedMotion ? 0 : 4000;
 
-    const finalRotation = calculateSpinRotation(state.currentRotation, winnerAngle, SPIN_ROTATIONS);
+    try {
+        const winner = await spinWheel(state.config, elements.previewWheel, null, {
+            spins: 5,
+            duration: spinDuration,
+            easing: 'cubic-bezier(0.17, 0.67, 0.12, 0.99)'
+        });
 
-    const wheelGroup = elements.previewWheel.querySelector('#wheel-container');
-    if (wheelGroup) {
-        wheelGroup.style.transformOrigin = '250px 250px';
-        wheelGroup.style.transition = `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.17, 0.67, 0.12, 0.99)`;
-        wheelGroup.style.transform = `rotate(${finalRotation}deg)`;
-    }
-
-    setCenterText(elements.previewWheel, '旋转中...');
-
-    setTimeout(() => {
+        const winnerLabel = document.createElement('strong');
+        winnerLabel.textContent = winner.label;
+        elements.resultDisplay.replaceChildren(
+            document.createTextNode('🎉 恭喜！结果是：'),
+            winnerLabel
+        );
+        updateCenterText(winner.label, elements.previewWheel);
+        updateMobileQuickBar(`结果：${winner.label}`);
+    } catch (error) {
+        console.error('Spin failed:', error);
+        updateCenterText(state.config.title || '开始', elements.previewWheel);
+        elements.resultDisplay.textContent = error.message || '旋转失败，请重试';
+        updateMobileQuickBar('旋转失败，请重试');
+    } finally {
         state.isSpinning = false;
-        state.currentRotation = finalRotation;
-        elements.spinBtn.disabled = false;
-
-        setCenterText(elements.previewWheel, winner.label);
-
-        elements.resultDisplay.innerHTML = `🎉 恭喜！结果是：<strong>${escapeHTML(winner.label)}</strong>`;
-    }, SPIN_DURATION_MS);
+        setSpinControlsDisabled(false);
+    }
 }
 
-function getConfig() {
+export function getConfig() {
     return cloneConfig(state.config);
+}
+
+export function setConfig(config) {
+    state.config = createEditableConfig(config);
+    hydrateFormFromState();
+    renderOptionsList();
+    renderThemeSelector();
+    updateWheelPreview();
+    updateMobileQuickBar('准备就绪');
+    syncPresetDirtyState();
+    renderPresetUI();
 }
 
 function renderPresetSelector() {
@@ -506,7 +516,7 @@ function renderPresetSelector() {
         categoryGroups[preset.category].push(preset);
     });
 
-    elements.presetSelector.innerHTML = '<option value="">从空白转盘开始</option>';
+    elements.presetSelector.innerHTML = '<option value="">选择一个预设...</option>';
 
     if (categoryGroups['生活']) {
         const group = document.createElement('optgroup');
@@ -578,22 +588,22 @@ function renderPresetUI() {
     const presetKind = getCurrentPresetKind();
     const presetLabel = preset
         ? `${preset.name} · ${getPresetSourceLabel(preset)}`
-        : '空白转盘';
+        : '未绑定预设';
 
     let statusType = state.presetFeedback.type || 'info';
     let statusText = state.presetFeedback.text || '当前是未绑定草稿';
 
     if (state.isPresetDirty) {
         statusType = 'dirty';
-        statusText = presetKind === 'builtin' ? '已修改模板，保存副本后可长期保留' : '已修改，未保存';
+        statusText = '已修改，未保存';
     } else if (!preset && !statusText) {
         statusText = '当前是未绑定草稿';
     } else if (!preset && statusType !== 'success') {
         statusType = 'info';
-        statusText = statusText || '当前是未绑定草稿';
+        statusText = '当前是未绑定草稿';
     } else if (presetKind === 'builtin' && statusType !== 'success') {
         statusType = 'info';
-        statusText = '默认模板可直接试用，修改后建议保存副本';
+        statusText = '默认预设可直接修改，也可以删除';
     } else if (presetKind === 'user' && statusType !== 'success') {
         statusType = 'info';
         statusText = '已保存，可继续编辑或另存为新预设';
@@ -603,22 +613,17 @@ function renderPresetUI() {
     elements.presetStatus.textContent = statusText;
     elements.presetStatus.className = `preset-status-badge ${statusType}`;
 
-    setActionButton(elements.duplicatePresetBtn, '新增：保存副本', '把当前转盘存到“我的预设”');
-
-    if (presetKind === 'user') {
-        setActionButton(elements.presetSaveBtn, '修改：保存当前', '更新正在编辑的我的预设');
+    if (presetKind === 'user' || presetKind === 'builtin') {
+        elements.presetSaveBtn.textContent = '💾 保存修改';
         elements.presetSaveBtn.disabled = !state.isPresetDirty;
-    } else if (presetKind === 'builtin') {
-        setActionButton(elements.presetSaveBtn, '修改：模板不可覆盖', '请用“新增：保存副本”保存');
-        elements.presetSaveBtn.disabled = true;
     } else {
-        setActionButton(elements.presetSaveBtn, '修改：暂无预设', '请先保存副本再修改');
-        elements.presetSaveBtn.disabled = true;
+        elements.presetSaveBtn.textContent = '💾 保存为预设';
+        elements.presetSaveBtn.disabled = false;
     }
 
     elements.duplicatePresetBtn.disabled = false;
-    elements.renamePresetBtn.disabled = presetKind !== 'user';
-    elements.deletePresetBtn.disabled = presetKind !== 'user';
+    elements.renamePresetBtn.disabled = presetKind === 'none';
+    elements.deletePresetBtn.disabled = presetKind === 'none';
 }
 
 function handlePresetSelection(e) {
@@ -636,12 +641,7 @@ function handlePresetSelection(e) {
         return;
     }
 
-    state.config = createDefaultConfig();
-    hydrateFormFromState();
-    renderOptionsList();
-    renderThemeSelector();
-    updateWheelPreview();
-    clearPresetBinding('已切换为空白转盘');
+    clearPresetBinding('当前配置已变成未绑定草稿');
     renderPresetUI();
 }
 
@@ -694,10 +694,6 @@ function handlePresetSave() {
     const presetKind = getCurrentPresetKind();
 
     if (presetKind === 'user' || presetKind === 'builtin') {
-        if (presetKind === 'builtin') {
-            saveAsNewPreset();
-            return;
-        }
         if (!state.isPresetDirty) return;
         saveCurrentPresetChanges();
         return;
@@ -803,11 +799,95 @@ function deleteCurrentPreset() {
 
 function showShareModal() {
     elements.shareUrlInput.value = generateShareURL(getConfig());
-    elements.shareModal.classList.add('active');
+    openModal(elements.shareModal, elements.copyUrlBtn);
 }
 
 function hideShareModal() {
-    elements.shareModal.classList.remove('active');
+    closeModal(elements.shareModal);
+}
+
+function getFocusableElements(container) {
+    return Array.from(container.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    )).filter(element => !element.disabled && element.offsetParent !== null);
+}
+
+function isFocusableElement(element) {
+    return Boolean(element && !element.disabled && element.offsetParent !== null);
+}
+
+function openModal(modal, focusTarget) {
+    lastFocusedElement = document.activeElement;
+    modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
+
+    requestAnimationFrame(() => {
+        const focusableElements = getFocusableElements(modal);
+        const target = isFocusableElement(focusTarget) ? focusTarget : focusableElements[0];
+        target?.focus();
+    });
+}
+
+function closeModal(modal) {
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+
+    if (lastFocusedElement && document.contains(lastFocusedElement)) {
+        lastFocusedElement.focus();
+    }
+
+    lastFocusedElement = null;
+}
+
+function getActiveModal() {
+    return [elements.shareModal, elements.presetNameModal].find(modal => modal.classList.contains('active'));
+}
+
+function closeActiveModal() {
+    if (elements.presetNameModal.classList.contains('active')) {
+        closePresetNameModal(null);
+        return;
+    }
+
+    if (elements.shareModal.classList.contains('active')) {
+        hideShareModal();
+    }
+}
+
+function handleModalKeydown(e) {
+    const activeModal = getActiveModal();
+    if (!activeModal) return;
+
+    if (e.key === 'Escape') {
+        e.preventDefault();
+        closeActiveModal();
+        return;
+    }
+
+    if (e.key !== 'Tab') return;
+
+    const focusableElements = getFocusableElements(activeModal);
+    if (focusableElements.length === 0) return;
+
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+
+    if (!activeModal.contains(document.activeElement)) {
+        e.preventDefault();
+        (e.shiftKey ? lastElement : firstElement).focus();
+        return;
+    }
+
+    if (e.shiftKey && document.activeElement === firstElement) {
+        e.preventDefault();
+        lastElement.focus();
+        return;
+    }
+
+    if (!e.shiftKey && document.activeElement === lastElement) {
+        e.preventDefault();
+        firstElement.focus();
+    }
 }
 
 async function copyShareURL() {

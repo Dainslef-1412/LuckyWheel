@@ -13,8 +13,18 @@ const config = {
     ]
 };
 
-test('a shared config survives the encode/decode round trip', () => {
-    assert.deepEqual(decodeConfigFromSearch(encodeConfigToURL(config)), config);
+function withoutInternalIds(value) {
+    return {
+        ...value,
+        items: value.items.map(({ label, weight }) => ({ label, weight }))
+    };
+}
+
+test('a shared config preserves user-visible fields without exposing internal ids', () => {
+    assert.deepEqual(
+        decodeConfigFromSearch(encodeConfigToURL(config)),
+        withoutInternalIds(config)
+    );
 });
 
 test('round trip preserves labels with characters that need escaping', () => {
@@ -27,13 +37,16 @@ test('round trip preserves labels with characters that need escaping', () => {
         ]
     };
 
-    assert.deepEqual(decodeConfigFromSearch(encodeConfigToURL(tricky)), tricky);
+    assert.deepEqual(
+        decodeConfigFromSearch(encodeConfigToURL(tricky)),
+        withoutInternalIds(tricky)
+    );
 });
 
 test('encoded parameter survives being parsed out of a full URL', () => {
     const url = new URL('https://example.com/' + encodeConfigToURL(config));
 
-    assert.deepEqual(decodeConfigFromSearch(url.search), config);
+    assert.deepEqual(decodeConfigFromSearch(url.search), withoutInternalIds(config));
 });
 
 test('decoding returns null instead of throwing on missing or broken input', () => {
