@@ -5,6 +5,7 @@
   "description": "Single-file offline custom wheel generator",
   "scripts": {
     "dev": "vite",
+    "test": "node --test --test-reporter=spec \"tests/*.test.js\"",
     "test:spin": "node --test tests/spin.test.js",
     "build": "vite build",
     "test:config": "node tests/config-safety.test.js",

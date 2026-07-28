@@ -1,6 +1,6 @@
-# CLAUDE.md
+# Agent Development Guidelines
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file preserves detailed agent and development guidance from the previous `CLAUDE.md`. Root `AGENTS.md` is the concise execution entry; this file provides additional context when working with code in this repository.
 
 ## Project Overview
 
@@ -65,8 +65,8 @@ zhuanpan/
 │   ├── presets.js       # Built-in presets
 │   ├── url-handler.js   # Share URL encoding/decoding
 │   └── utils.js         # Helper functions
-├── prd.md              # Requirements document
-└── CLAUDE.md           # This file
+├── SPEC.md             # Product source of truth
+└── AGENTS.md           # Concise agent execution entry
 ```
 
 ## Core Algorithms

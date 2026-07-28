@@ -1,167 +1,70 @@
-# 🎡 转盘生成器 (Wheel Generator)
+# 转盘生成器 (LuckyWheel)
 
-一个自定义转盘工具，允许用户创建带有权重选项的转盘，并直接在页面中旋转、保存和分享。
+一个纯静态的自定义转盘工具。用户可以编辑转盘标题、选项、权重和主题，在页面内直接旋转、保存预设，并生成分享链接。
 
-## ✨ 特性
+## 文档分工
 
-- **实时预览**：编辑时实时查看转盘变化
-- **权重系统**：支持为每个选项设置权重
-- **多主题**：内置 5 种精美主题（森林、海洋、夕阳、浆果、清新）
-- **即配即玩**：配置完成后可直接在页面中使用转盘
-- **链接分享**：可生成带配置的分享链接
-- **响应式设计**：完美支持移动端和桌面端
+- [SPEC.md](./SPEC.md)：产品真相，描述功能范围、交互流程、算法和验收重点。
+- [DATA_DESIGN.md](./DATA_DESIGN.md)：数据真相，描述配置对象、URL 状态、localStorage 和兼容规则。
+- [TECH_DESIGN.md](./TECH_DESIGN.md)：技术真相，描述静态架构、模块职责、构建和部署约束。
+- [TEST_PLAN.md](./TEST_PLAN.md)：验证真相，描述构建检查和手工验收清单。
+- [PROJECT_LAYOUT.md](./PROJECT_LAYOUT.md)：目录真相，描述当前项目结构与标准代码项目结构的映射。
+- [AGENTS.md](./AGENTS.md)：Agent 执行入口，详细开发规范保存在 [docs/agent-development-guidelines.md](./docs/agent-development-guidelines.md)。
+- [docs/tech/deployment.md](./docs/tech/deployment.md)：部署指南。
 
-## 🚀 快速开始
+## 目录结构
 
-### 安装依赖
+```text
+.
+├── src/                  # 浏览器应用代码
+├── tests/                # 单元测试（Node 内置 test runner）
+├── docs/                 # 详细工程、部署和交付文档
+├── outputs/              # 生成的部署包和可再生成产物
+├── SPEC.md
+├── DATA_DESIGN.md
+├── TECH_DESIGN.md
+├── TEST_PLAN.md
+├── PROJECT_LAYOUT.md
+├── AGENTS.md
+├── index.html
+├── package.json
+└── vite.config.js
+```
+
+## 当前功能
+
+- 实时预览转盘配置。
+- 支持选项增删、标签编辑和正整数权重。
+- 内置森林、海洋、夕阳、浆果、清新主题。
+- 使用 SVG 绘制扇区，通过权重计算角度。
+- 使用加权随机选择中奖项。
+- 支持本地预设保存、复制、重命名、删除。
+- 支持将当前配置编码到 URL 分享。
+- 可作为纯静态网站部署。
+
+## 本地命令
 
 ```bash
 npm install
-```
-
-### 开发模式
-
-```bash
 npm run dev
-```
-
-访问 http://localhost:5173 查看应用。
-
-### 构建生产版本
-
-```bash
+npm test
 npm run build
-```
-
-构建产物将输出到 `dist/` 目录。
-
-### 预览生产版本
-
-```bash
 npm run preview
 ```
 
-## 📖 使用说明
+开发模式默认访问 `http://localhost:5173`。生产构建输出到 `dist/`，生成的部署包或压缩产物放入 `outputs/`。
 
-### 编辑器模式
+## 技术栈
 
-1. **设置标题**：输入转盘的主题文字
-2. **选择主题**：从 5 种预设主题中选择
-3. **添加选项**：
-   - 点击 "+ 添加选项" 按钮添加新选项
-   - 为每个选项设置标签和权重
-   - 点击 "×" 按钮删除选项
-4. **实时预览**：右侧会实时显示转盘预览
-5. **直接使用**：点击 "开始旋转" 立即使用当前配置
-6. **分享配置**：点击 "分享链接" 复制当前转盘链接
+- Vite
+- Vanilla JavaScript
+- SVG
+- CSS Variables
+- Browser localStorage
 
-### 游玩模式
+## 下一步
 
-1. 点击 "开始旋转" 按钮开始旋转
-2. 转盘会根据权重随机选择一个选项
-3. 旋转完成后显示中奖结果
-4. 修改左侧配置后可立即再次使用
-
-## 🎯 核心功能
-
-### SVG 渲染
-
-使用原生 SVG 绘制转盘扇区，通过数学计算精确控制每个扇区的角度和位置。
-
-### 加权随机
-
-根据选项权重进行随机选择，确保权重高的选项有更大的选中概率。
-
-### 物理动画
-
-使用 CSS cubic-bezier 实现流畅的减速动画效果。
-
-### 页面内使用
-
-所有配置、预览和旋转都在同一页面完成，无需额外导出文件。
-
-## 📁 项目结构
-
-```
-zhuanpan/
-├── index.html              # 主页面（编辑器）
-├── src/
-│   ├── main.js             # 应用入口
-│   ├── utils.js            # 工具函数
-│   ├── themes.js           # 主题系统
-│   ├── wheel.js            # 转盘渲染
-│   ├── spin.js             # 旋转动画
-│   ├── preset-manager.js   # 预设管理
-│   ├── presets.js          # 内置预设
-│   └── url-handler.js      # 链接分享
-├── package.json
-├── vite.config.js
-└── README.md
-```
-
-## 🎨 主题
-
-项目内置 5 种主题：
-
-- **森林**：绿色系，自然清新
-- **海洋**：蓝色系，深邃宁静
-- **夕阳**：暖色系，活力四射
-- **浆果**：紫红系，优雅神秘
-- **清新**：多彩系，明快活泼
-
-## 🔧 技术栈
-
-- **Vite**：构建工具
-- **Vanilla JavaScript**：无框架依赖
-- **SVG**：图形渲染
-- **CSS Variables**：主题系统
-
-## 📝 开发指南
-
-### 添加新主题
-
-在 `src/themes.js` 中添加新主题配置：
-
-```javascript
-export const THEMES = {
-    // ... 现有主题
-    myTheme: {
-        name: '我的主题',
-        colors: ['#color1', '#color2', '#color3', '#color4', '#color5'],
-        background: '#bg-color',
-        text: '#text-color',
-        accent: '#accent-color'
-    }
-};
-```
-
-### 修改动画参数
-
-在 `src/spin.js` 中调整旋转参数：
-
-```javascript
-{
-    spins: 5,        // 旋转圈数
-    duration: 4000,  // 动画时长（毫秒）
-    easing: 'cubic-bezier(0.17, 0.67, 0.12, 0.99)' // 缓动函数
-}
-```
-
-## 🌐 浏览器支持
-
-- Chrome / Edge (最新版)
-- Safari (最新版)
-- Firefox (最新版)
-- 移动端浏览器
-
-## 📄 许可证
-
-MIT License
-
-## 🤝 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
-## 📮 联系方式
-
-如有问题或建议，请通过 GitHub Issues 联系。
+- 为预设持久化补单元测试（需要 `localStorage` 替身）。
+- 为选项编辑、预设操作和中心文字补 DOM 测试。
+- 补桌面和移动端的手工视觉回归清单。
+- 在改变配置结构前确认分享链接兼容策略。

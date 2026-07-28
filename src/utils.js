@@ -20,13 +20,14 @@ export function degToRad(degrees) {
     return degrees * (Math.PI / 180);
 }
 
+
 /**
- * Convert radians to degrees
- * @param {number} radians - Angle in radians
- * @returns {number} Angle in degrees
+ * Fold an angle into the [0, 360) range
+ * @param {number} degrees - Angle in degrees
+ * @returns {number} Equivalent angle in [0, 360)
  */
-export function radToDeg(radians) {
-    return radians * (180 / Math.PI);
+export function normalizeAngle(degrees) {
+    return ((degrees % 360) + 360) % 360;
 }
 
 /**
@@ -51,7 +52,7 @@ export function weightedRandom(items) {
  * @returns {string} Unique ID
  */
 export function generateId() {
-    return Math.random().toString(36).substr(2, 9);
+    return Math.random().toString(36).slice(2, 11);
 }
 
 /**
@@ -62,7 +63,7 @@ export function generateId() {
  */
 export function truncateText(text, maxLength = 20) {
     if (text.length <= maxLength) return text;
-    return text.substr(0, maxLength - 3) + '...';
+    return text.slice(0, maxLength - 3) + '...';
 }
 
 /**
@@ -97,32 +98,4 @@ export function calculatePointOnCircle(centerX, centerY, radius, angle) {
         x: centerX + radius * Math.cos(radians),
         y: centerY + radius * Math.sin(radians)
     };
-}
-
-/**
- * Minify CSS by removing comments and extra whitespace
- * @param {string} css - CSS string
- * @returns {string} Minified CSS
- */
-export function minifyCSS(css) {
-    return css
-        .replace(/\/\*[\s\S]*?\*\//g, '') // Remove comments
-        .replace(/\s+/g, ' ')              // Collapse whitespace
-        .replace(/\s*([\{\}\:\;])\s*/g, '$1') // Remove spacing around symbols
-        .replace(/\s*,\s*/g, ',')          // Remove spacing after commas
-        .trim();
-}
-
-/**
- * Minify JavaScript by removing comments and extra whitespace
- * @param {string} js - JavaScript string
- * @returns {string} Minified JavaScript
- */
-export function minifyJS(js) {
-    return js
-        .replace(/\/\/.*$/gm, '')          // Remove single-line comments
-        .replace(/\/\*[\s\S]*?\*\//g, '')  // Remove multi-line comments
-        .replace(/\s+/g, ' ')              // Collapse whitespace
-        .replace(/\s*([\{\}\(\)\[\]\:\;\,])\s*/g, '$1') // Remove spacing around symbols
-        .trim();
 }

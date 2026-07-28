@@ -3,6 +3,11 @@ node_modules/
 
 # Build output
 dist/
+outputs/*
+!outputs/.gitkeep
+!outputs/packages/
+outputs/packages/*
+!outputs/packages/.gitkeep
 
 # Editor
 .vscode/

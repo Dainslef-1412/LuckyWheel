@@ -2,7 +2,13 @@
  * SVG rendering engine for the wheel
  */
 
-import { degToRad, getTotalWeight, calculatePointOnCircle, truncateText } from './utils.js';
+import { degToRad, getTotalWeight, calculatePointOnCircle, truncateText, normalizeAngle } from './utils.js';
+
+const CENTER_TEXT_ID = 'center-text';
+const CENTER_TEXT_MAX_FONT_SIZE = 16;
+const CENTER_TEXT_MIN_FONT_SIZE = 9;
+const CENTER_TEXT_MAX_CHARS = 10;
+const CJK_PATTERN = /[\u2E80-\u9FFF\uF900-\uFAFF\uFF00-\uFF60]/;
 
 /**
  * Generate SVG path for a wheel sector
@@ -47,6 +53,25 @@ export function calculateSectorAngles(items) {
         currentAngle += sectorAngle;
         return angles;
     });
+}
+
+/**
+ * Calculate the absolute rotation that stops the winning sector under the pointer
+ *
+ * The wheel keeps the offset left by earlier spins, so the alignment step is
+ * measured from that offset rather than from zero. Ignoring it makes every spin
+ * after the first stop on a different sector than the announced winner.
+ *
+ * @param {number} currentRotation - Rotation the wheel already carries, in degrees
+ * @param {number} winnerAngle - Center angle of the winning sector, in degrees
+ * @param {number} spins - Number of full rotations to add
+ * @returns {number} Absolute target rotation in degrees, always greater than currentRotation
+ */
+export function calculateSpinRotation(currentRotation, winnerAngle, spins = 5) {
+    const currentOffset = normalizeAngle(currentRotation);
+    const alignToWinner = normalizeAngle((360 - winnerAngle) - currentOffset);
+
+    return currentRotation + (360 * spins) + alignToWinner;
 }
 
 /**
@@ -125,18 +150,68 @@ export function createCenterCircle(config, options = {}) {
 
     // Center text
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('id', CENTER_TEXT_ID);
     text.setAttribute('x', centerX);
     text.setAttribute('y', centerY);
     text.setAttribute('data-role', 'center-text');
     text.setAttribute('text-anchor', 'middle');
     text.setAttribute('dominant-baseline', 'middle');
     text.setAttribute('fill', '#333');
-    text.setAttribute('font-size', '16');
     text.setAttribute('font-weight', 'bold');
-    text.textContent = config.title || '开始';
     g.appendChild(text);
 
+    applyCenterText(text, config.title || '开始', innerRadius);
+
     return g;
+}
+
+/**
+ * Pick a font size that keeps center text inside the center circle
+ * @param {string} label - Text to display
+ * @param {number} innerRadius - Radius of the center circle
+ * @returns {number} Font size in user units
+ */
+export function centerTextFontSize(label, innerRadius = 50) {
+    const text = String(label ?? '');
+    if (!text) return CENTER_TEXT_MAX_FONT_SIZE;
+
+    // CJK glyphs are roughly one em wide, latin glyphs roughly 0.6em.
+    const widthInEm = [...text].reduce(
+        (sum, char) => sum + (CJK_PATTERN.test(char) ? 1 : 0.6),
+        0
+    );
+    const usableWidth = innerRadius * 1.8;
+
+    return Math.max(
+        CENTER_TEXT_MIN_FONT_SIZE,
+        Math.min(CENTER_TEXT_MAX_FONT_SIZE, usableWidth / widthInEm)
+    );
+}
+
+/**
+ * Write text into the center circle, scaling it to fit
+ * @param {SVGTextElement} textElement - Center text element
+ * @param {string} label - Text to display
+ * @param {number} innerRadius - Radius of the center circle
+ */
+function applyCenterText(textElement, label, innerRadius) {
+    const shown = truncateText(String(label ?? ''), CENTER_TEXT_MAX_CHARS);
+    textElement.textContent = shown;
+    textElement.setAttribute('font-size', centerTextFontSize(shown, innerRadius).toFixed(2));
+}
+
+/**
+ * Update the center circle text of a rendered wheel
+ * @param {SVGSVGElement} svgElement - SVG element containing the wheel
+ * @param {string} label - Text to display
+ * @param {Object} options - Options for rendering
+ */
+export function setCenterText(svgElement, label, options = {}) {
+    const { innerRadius = 50 } = options;
+    const textElement = svgElement.querySelector(`#${CENTER_TEXT_ID}`);
+    if (textElement) {
+        applyCenterText(textElement, label, innerRadius);
+    }
 }
 
 /**
@@ -229,31 +304,4 @@ export function renderWheel(config, svgElement, options = {}) {
         });
         svgElement.appendChild(pointer);
     }
-}
-
-/**
- * Update wheel rotation
- * @param {number} rotation - Rotation in degrees
- * @param {SVGSVGElement} svgElement - SVG element
- */
-export function updateWheelRotation(rotation, svgElement) {
-    const wheelGroup = svgElement.querySelector('#wheel-container');
-    if (wheelGroup) {
-        wheelGroup.setAttribute('transform', `rotate(${rotation}, 250, 250)`);
-    }
-}
-
-/**
- * Get wheel rotation
- * @param {SVGSVGElement} svgElement - SVG element
- * @returns {number} Current rotation in degrees
- */
-export function getWheelRotation(svgElement) {
-    const wheelGroup = svgElement.querySelector('#wheel-container');
-    if (wheelGroup) {
-        const transform = wheelGroup.getAttribute('transform');
-        const match = transform?.match(/rotate\((\d+)/);
-        return match ? parseInt(match[1], 10) : 0;
-    }
-    return 0;
 }

@@ -72,38 +72,3 @@ export function assignColors(items, themeName) {
         color: colors[index % colors.length]
     }));
 }
-
-/**
- * Apply theme CSS variables to element
- * @param {string} themeName - Name of the theme
- * @param {HTMLElement} element - Element to apply theme to
- */
-export function applyThemeCSS(themeName, element = document.documentElement) {
-    const theme = getTheme(themeName);
-
-    element.style.setProperty('--theme-background', theme.background);
-    element.style.setProperty('--theme-text', theme.text);
-    element.style.setProperty('--theme-accent', theme.accent);
-
-    theme.colors.forEach((color, index) => {
-        element.style.setProperty(`--theme-color-${index}`, color);
-    });
-}
-
-/**
- * Get CSS for theme
- * @param {string} themeName - Name of the theme
- * @returns {string} CSS string
- */
-export function getThemeCSS(themeName) {
-    const theme = getTheme(themeName);
-    const colorsCSS = theme.colors.map((color, index) =>
-        `    --theme-color-${index}: ${color};`
-    ).join('\n');
-
-    return `
-    --theme-background: ${theme.background};
-    --theme-text: ${theme.text};
-    --theme-accent: ${theme.accent};
-${colorsCSS}`;
-}
