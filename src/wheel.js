@@ -304,5 +304,3 @@ export function renderWheel(config, svgElement, options = {}) {
         svgElement.appendChild(pointer);
     }
 }
-
-

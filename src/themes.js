@@ -72,5 +72,3 @@ export function assignColors(items, themeName) {
         color: colors[index % colors.length]
     }));
 }
-
-
