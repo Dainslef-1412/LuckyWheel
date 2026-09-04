@@ -44,8 +44,53 @@ settled by attempting the push. The result is recorded below.
 
 ## Result
 
-Filled in by the commit that follows this one, after `github-agent push` and
-`github-agent pr-create-draft` were run against this branch.
+**The path works. The earlier hypothesis was wrong — the blocker was local.**
+
+`github-agent push` from `codex/hostinger-delivery-verify` first failed twice
+with `{"reason": "local-git-command-failed"}`. That reason names the *local*
+side, unlike the `git-remote-rejected` the earlier attempt recorded. It
+reproduces directly:
+
+```
+$ git update-ref refs/remotes/origin/codex/dftest HEAD
+fatal: ... 'refs/remotes/origin/codex' exists;
+cannot create 'refs/remotes/origin/codex/dftest'
+```
+
+`refs/remotes/origin/codex` was a stale remote-tracking ref at `d5162ac`,
+already an ancestor of `main`. Because `github-agent fetch` tracks `main` alone
+and never prunes, it had outlived the branch it mirrored. Writing the tracking
+ref for any `codex/*` branch therefore failed on this host before the push
+reached GitHub at all.
+
+One local, reversible deletion cleared it:
+
+```sh
+git update-ref -d refs/remotes/origin/codex
+# restore if ever needed:
+# git update-ref refs/remotes/origin/codex d5162acf7170a81ada561cdd4c127ade58d4e888
+```
+
+Nothing on GitHub was changed. The next `github-agent push` succeeded on the
+first try:
+
+| Step | Command | Result |
+|---|---|---|
+| Publish branch | `github-agent push` | `status: pushed`, `codex/hostinger-delivery-verify` at `da11901` |
+| Open Draft PR | `github-agent pr-create-draft --title ... --body-file ./pr-body.md` | `status: draft-created`, PR #16, `draft: true`, base `main` |
+
+So `refs/heads/codex` is not blocking anything on the remote — whether it was
+deleted in the meantime or never was the cause, a `codex/*` branch publishes
+cleanly today. `CLOSEOUT_v1.0.0.md` handoff 3 is resolved and needs no Ops
+action.
+
+Two smaller facts worth keeping:
+
+- `--body-file` must point **inside the repository**. A path under `/tmp` is
+  refused with `{"reason": "pr-body-path-forbidden"}`.
+- Retrying a broker failure once before attributing it is still right, but
+  `local-git-command-failed` repeated identically twice, which is what pointed
+  at a local cause rather than a transient token problem.
 
 ## Out of scope for this seat
 
